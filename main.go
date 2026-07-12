@@ -22,6 +22,7 @@ func main() {
 		Limit:  10,
 		Offset: 0,
 	}
+
 	queries := db.New(conn)
 	res, err := queries.GetUsers(context.Background(), params)
 	if err != nil {

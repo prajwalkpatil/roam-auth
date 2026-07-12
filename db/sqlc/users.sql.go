@@ -7,11 +7,14 @@ package db
 
 import (
 	"context"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const getUsers = `-- name: GetUsers :many
-SELECT id, name, is_active FROM public.users 
-ORDER BY id ASC 
+SELECT public.users.id AS id, name, email, created_at 
+FROM public.users
+INNER JOIN auth.users ON public.users.id = auth.users.id
 LIMIT $1 OFFSET $2
 `
 
@@ -20,16 +23,28 @@ type GetUsersParams struct {
 	Offset int32
 }
 
-func (q *Queries) GetUsers(ctx context.Context, arg GetUsersParams) ([]User, error) {
+type GetUsersRow struct {
+	ID        pgtype.UUID
+	Name      string
+	Email     string
+	CreatedAt pgtype.Timestamptz
+}
+
+func (q *Queries) GetUsers(ctx context.Context, arg GetUsersParams) ([]GetUsersRow, error) {
 	rows, err := q.db.Query(ctx, getUsers, arg.Limit, arg.Offset)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []User
+	var items []GetUsersRow
 	for rows.Next() {
-		var i User
-		if err := rows.Scan(&i.ID, &i.Name, &i.IsActive); err != nil {
+		var i GetUsersRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Email,
+			&i.CreatedAt,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
