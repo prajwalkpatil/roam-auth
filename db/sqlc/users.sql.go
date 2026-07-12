@@ -11,6 +11,37 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const createAuthUser = `-- name: CreateAuthUser :one
+INSERT INTO auth.users (email) 
+VALUES ($1)
+RETURNING id
+`
+
+func (q *Queries) CreateAuthUser(ctx context.Context, email string) (pgtype.UUID, error) {
+	row := q.db.QueryRow(ctx, createAuthUser, email)
+	var id pgtype.UUID
+	err := row.Scan(&id)
+	return id, err
+}
+
+const createPublicUser = `-- name: CreatePublicUser :one
+INSERT INTO public.users (id, name)
+VALUES ($1, $2)
+RETURNING id
+`
+
+type CreatePublicUserParams struct {
+	ID   pgtype.UUID
+	Name string
+}
+
+func (q *Queries) CreatePublicUser(ctx context.Context, arg CreatePublicUserParams) (pgtype.UUID, error) {
+	row := q.db.QueryRow(ctx, createPublicUser, arg.ID, arg.Name)
+	var id pgtype.UUID
+	err := row.Scan(&id)
+	return id, err
+}
+
 const getUsers = `-- name: GetUsers :many
 SELECT public.users.id AS id, name, email, created_at 
 FROM public.users

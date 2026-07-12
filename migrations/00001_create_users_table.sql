@@ -3,7 +3,7 @@ CREATE SCHEMA auth;
 
 CREATE TABLE auth.users (
     id uuid DEFAULT uuidv7() PRIMARY KEY,
-    email VARCHAR(255) NOT NULL,
+    email VARCHAR(255) NOT NULL UNIQUE,
     created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
 
