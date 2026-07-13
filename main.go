@@ -2,13 +2,17 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	db "roam-auth/db/sqlc"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/joho/godotenv"
 )
+
+var ErrEmailAlreadyExists error = errors.New("Email already exists")
 
 func printUsers(queries *db.Queries) {
 	res, err := queries.GetUsers(context.Background(), db.GetUsersParams{
@@ -24,7 +28,12 @@ func printUsers(queries *db.Queries) {
 func createUser(queries *db.Queries, name string, email string) (string, error) {
 	id, err := queries.CreateAuthUser(context.Background(), email)
 	if err != nil {
-		return "", err
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) {
+			if pgErr.Code == "23505" {
+				return "", ErrEmailAlreadyExists
+			}
+		}
 	}
 	_, err = queries.CreatePublicUser(context.Background(), db.CreatePublicUserParams{
 		ID:   id,
@@ -46,9 +55,13 @@ func main() {
 	defer conn.Close(context.Background())
 
 	queries := db.New(conn)
-	_, err = createUser(queries, "Freaking Insane", "freakinginsane@gmail.com")
+	_, err = createUser(queries, "Prajwal Patil", "prajwalpatilk@gmail.com")
 	if err != nil {
-		fmt.Println("Couldn't create user: ", err)
+		if errors.Is(err, ErrEmailAlreadyExists) {
+			fmt.Println("DUPLICATE USER: ", err)
+		} else {
+			fmt.Println(err)
+		}
 	}
 	printUsers(queries)
 }
