@@ -9,7 +9,6 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
-	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/joho/godotenv"
 )
 
@@ -26,20 +25,34 @@ func printUsers(queries *db.Queries) {
 	fmt.Println("Query result: ", res)
 }
 
-func createUser(queries *db.Queries, name string, email string) (pgtype.UUID, error) {
-	id, err := queries.CreateAuthUser(context.Background(), email)
+func createUser(ctx context.Context, conn *pgx.Conn, queries *db.Queries, name string, email string) (string, error) {
+	tx, err := conn.Begin(ctx)
 	if err != nil {
-		emptyId := pgtype.UUID{Valid: false}
+		return "", err
+	}
+	defer tx.Rollback(ctx)
+
+	qtx := queries.WithTx(tx)
+
+	id, err := qtx.CreateAuthUser(ctx, email)
+	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
-			return emptyId, ErrEmailAlreadyExists
+			return "", fmt.Errorf("%w: %v", ErrEmailAlreadyExists, err)
 		}
-		return emptyId, err
+		return "", err
 	}
-	return queries.CreatePublicUser(context.Background(), db.CreatePublicUserParams{
+	id, err = qtx.CreatePublicUser(ctx, db.CreatePublicUserParams{
 		ID:   id,
 		Name: name,
 	})
+	if err != nil {
+		return "", err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return "", err
+	}
+	return id.String(), nil
 }
 
 func main() {
@@ -52,7 +65,7 @@ func main() {
 	defer conn.Close(context.Background())
 
 	queries := db.New(conn)
-	_, err = createUser(queries, "Prajwal Patil", "prajwalpatilk@gmail.com")
+	_, err = createUser(context.Background(), conn, queries, "Prajwal Patil", "prajwalpatilk@gmail.com")
 	if err != nil {
 		if errors.Is(err, ErrEmailAlreadyExists) {
 			fmt.Println("DUPLICATE USER: ", err)
