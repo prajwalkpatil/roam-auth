@@ -9,6 +9,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/joho/godotenv"
 )
 
@@ -25,24 +26,20 @@ func printUsers(queries *db.Queries) {
 	fmt.Println("Query result: ", res)
 }
 
-func createUser(queries *db.Queries, name string, email string) (string, error) {
+func createUser(queries *db.Queries, name string, email string) (pgtype.UUID, error) {
 	id, err := queries.CreateAuthUser(context.Background(), email)
 	if err != nil {
+		emptyId := pgtype.UUID{Valid: false}
 		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) {
-			if pgErr.Code == "23505" {
-				return "", ErrEmailAlreadyExists
-			}
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+			return emptyId, ErrEmailAlreadyExists
 		}
+		return emptyId, err
 	}
-	_, err = queries.CreatePublicUser(context.Background(), db.CreatePublicUserParams{
+	return queries.CreatePublicUser(context.Background(), db.CreatePublicUserParams{
 		ID:   id,
 		Name: name,
 	})
-	if err != nil {
-		return "", err
-	}
-	return id.String(), nil
 }
 
 func main() {
