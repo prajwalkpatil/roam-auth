@@ -5,22 +5,23 @@
 package db
 
 import (
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type AuthPassword struct {
-	ID                pgtype.UUID
+	ID                uuid.UUID
 	EncryptedPassword string
 }
 
 type AuthUser struct {
-	ID        pgtype.UUID
+	ID        uuid.UUID
 	Email     string
 	CreatedAt pgtype.Timestamptz
 }
 
 type User struct {
-	ID       pgtype.UUID
+	ID       uuid.UUID
 	Name     string
 	IsActive pgtype.Bool
 }

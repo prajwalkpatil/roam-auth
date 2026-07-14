@@ -8,6 +8,7 @@ package db
 import (
 	"context"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
@@ -17,9 +18,9 @@ VALUES ($1)
 RETURNING id
 `
 
-func (q *Queries) CreateAuthUser(ctx context.Context, email string) (pgtype.UUID, error) {
+func (q *Queries) CreateAuthUser(ctx context.Context, email string) (uuid.UUID, error) {
 	row := q.db.QueryRow(ctx, createAuthUser, email)
-	var id pgtype.UUID
+	var id uuid.UUID
 	err := row.Scan(&id)
 	return id, err
 }
@@ -31,21 +32,81 @@ RETURNING id
 `
 
 type CreatePublicUserParams struct {
-	ID   pgtype.UUID
+	ID   uuid.UUID
 	Name string
 }
 
-func (q *Queries) CreatePublicUser(ctx context.Context, arg CreatePublicUserParams) (pgtype.UUID, error) {
+func (q *Queries) CreatePublicUser(ctx context.Context, arg CreatePublicUserParams) (uuid.UUID, error) {
 	row := q.db.QueryRow(ctx, createPublicUser, arg.ID, arg.Name)
-	var id pgtype.UUID
+	var id uuid.UUID
 	err := row.Scan(&id)
 	return id, err
+}
+
+const createUserPassword = `-- name: CreateUserPassword :one
+INSERT INTO auth.passwords (id, encrypted_password)
+VALUES ($1, $2)
+RETURNING id
+`
+
+type CreateUserPasswordParams struct {
+	ID                uuid.UUID
+	EncryptedPassword string
+}
+
+func (q *Queries) CreateUserPassword(ctx context.Context, arg CreateUserPasswordParams) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, createUserPassword, arg.ID, arg.EncryptedPassword)
+	var id uuid.UUID
+	err := row.Scan(&id)
+	return id, err
+}
+
+const getUserPasswords = `-- name: GetUserPasswords :many
+SELECT auth.passwords.id AS id, 
+auth.users.email AS email, 
+auth.passwords.encrypted_password AS password 
+FROM auth.passwords
+INNER JOIN auth.users
+ON auth.users.id = auth.passwords.id
+LIMIT $1 OFFSET $2
+`
+
+type GetUserPasswordsParams struct {
+	Limit  int32
+	Offset int32
+}
+
+type GetUserPasswordsRow struct {
+	ID       uuid.UUID
+	Email    string
+	Password string
+}
+
+func (q *Queries) GetUserPasswords(ctx context.Context, arg GetUserPasswordsParams) ([]GetUserPasswordsRow, error) {
+	rows, err := q.db.Query(ctx, getUserPasswords, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetUserPasswordsRow
+	for rows.Next() {
+		var i GetUserPasswordsRow
+		if err := rows.Scan(&i.ID, &i.Email, &i.Password); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const getUsers = `-- name: GetUsers :many
 SELECT public.users.id AS id, name, email, created_at 
 FROM public.users
-INNER JOIN auth.users ON public.users.id = auth.users.id
+INNER JOIN auth.users 
+ON public.users.id = auth.users.id
 LIMIT $1 OFFSET $2
 `
 
@@ -55,7 +116,7 @@ type GetUsersParams struct {
 }
 
 type GetUsersRow struct {
-	ID        pgtype.UUID
+	ID        uuid.UUID
 	Name      string
 	Email     string
 	CreatedAt pgtype.Timestamptz

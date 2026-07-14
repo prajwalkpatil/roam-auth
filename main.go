@@ -7,6 +7,7 @@ import (
 	"os"
 	db "roam-auth/db/sqlc"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/joho/godotenv"
@@ -22,7 +23,18 @@ func printUsers(queries *db.Queries) {
 	if err != nil {
 		fmt.Println("Failed to execute the query: ", err)
 	}
-	fmt.Println("Query result: ", res)
+	fmt.Printf("Query result: %v", res)
+}
+
+func printPasswords(queries *db.Queries) {
+	res, err := queries.GetUserPasswords(context.Background(), db.GetUserPasswordsParams{
+		Limit:  10,
+		Offset: 0,
+	})
+	if err != nil {
+		fmt.Println("Failed to execute the query: ", err)
+	}
+	fmt.Printf("Query result: %v", res)
 }
 
 func createUser(ctx context.Context, conn *pgx.Conn, queries *db.Queries, name string, email string) (string, error) {
@@ -55,6 +67,29 @@ func createUser(ctx context.Context, conn *pgx.Conn, queries *db.Queries, name s
 	return id.String(), nil
 }
 
+func createUserPassword(ctx context.Context, conn *pgx.Conn, queries *db.Queries, id string, encryptedPassword string) (string, error) {
+	tx, err := conn.Begin(ctx)
+	if err != nil {
+		return "", err
+	}
+	defer tx.Rollback(ctx)
+	qtx := queries.WithTx(tx)
+
+	userId, err := uuid.Parse(id)
+	if err != nil {
+		return "", err
+	}
+	userId, err = qtx.CreateUserPassword(ctx, db.CreateUserPasswordParams{
+		ID:                userId,
+		EncryptedPassword: encryptedPassword,
+	})
+
+	if err := tx.Commit(ctx); err != nil {
+		return "", err
+	}
+	return userId.String(), nil
+}
+
 func main() {
 	godotenv.Load()
 	conn, err := pgx.Connect(context.Background(), os.Getenv("DATABASE_URL"))
@@ -65,7 +100,7 @@ func main() {
 	defer conn.Close(context.Background())
 
 	queries := db.New(conn)
-	_, err = createUser(context.Background(), conn, queries, "Prajwal Patil", "prajwalpatilk@gmail.com")
+	_, err = createUser(context.Background(), conn, queries, "Prajwal 2", "prajwalpatil2@gmail.com")
 	if err != nil {
 		if errors.Is(err, ErrEmailAlreadyExists) {
 			fmt.Println("DUPLICATE USER: ", err)
