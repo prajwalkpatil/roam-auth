@@ -16,11 +16,11 @@ VALUES ($1, $2)
 RETURNING id; 
 
 -- name: CreateUserPassword :one
-INSERT INTO auth.passwords (id, encrypted_password)
+INSERT INTO auth.passwords (id, hashed_password)
 VALUES ($1, $2)
 RETURNING id;
 
 -- name: GetUserPassword :one
-SELECT encrypted_password 
+SELECT hashed_password
 FROM auth.passwords
 WHERE id = $1;

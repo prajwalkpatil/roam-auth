@@ -9,7 +9,7 @@ CREATE TABLE auth.users (
 
 CREATE TABLE auth.passwords (
     id uuid REFERENCES auth.users(id) PRIMARY KEY,
-    encrypted_password VARCHAR(255) NOT NULL
+    hashed_password VARCHAR(255) NOT NULL
 );
 
 CREATE TABLE public.users (

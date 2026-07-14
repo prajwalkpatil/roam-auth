@@ -44,34 +44,34 @@ func (q *Queries) CreatePublicUser(ctx context.Context, arg CreatePublicUserPara
 }
 
 const createUserPassword = `-- name: CreateUserPassword :one
-INSERT INTO auth.passwords (id, encrypted_password)
+INSERT INTO auth.passwords (id, hashed_password)
 VALUES ($1, $2)
 RETURNING id
 `
 
 type CreateUserPasswordParams struct {
-	ID                uuid.UUID
-	EncryptedPassword string
+	ID             uuid.UUID
+	HashedPassword string
 }
 
 func (q *Queries) CreateUserPassword(ctx context.Context, arg CreateUserPasswordParams) (uuid.UUID, error) {
-	row := q.db.QueryRow(ctx, createUserPassword, arg.ID, arg.EncryptedPassword)
+	row := q.db.QueryRow(ctx, createUserPassword, arg.ID, arg.HashedPassword)
 	var id uuid.UUID
 	err := row.Scan(&id)
 	return id, err
 }
 
 const getUserPassword = `-- name: GetUserPassword :one
-SELECT encrypted_password 
+SELECT hashed_password
 FROM auth.passwords
 WHERE id = $1
 `
 
 func (q *Queries) GetUserPassword(ctx context.Context, id uuid.UUID) (string, error) {
 	row := q.db.QueryRow(ctx, getUserPassword, id)
-	var encrypted_password string
-	err := row.Scan(&encrypted_password)
-	return encrypted_password, err
+	var hashed_password string
+	err := row.Scan(&hashed_password)
+	return hashed_password, err
 }
 
 const getUsers = `-- name: GetUsers :many

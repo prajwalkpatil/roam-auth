@@ -10,8 +10,8 @@ import (
 )
 
 type AuthPassword struct {
-	ID                uuid.UUID
-	EncryptedPassword string
+	ID             uuid.UUID
+	HashedPassword string
 }
 
 type AuthUser struct {

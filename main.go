@@ -57,7 +57,7 @@ func createUser(ctx context.Context, conn *pgx.Conn, queries *db.Queries, name s
 	return id.String(), nil
 }
 
-func createUserPassword(ctx context.Context, conn *pgx.Conn, queries *db.Queries, id string, encryptedPassword string) (string, error) {
+func createUserPassword(ctx context.Context, conn *pgx.Conn, queries *db.Queries, id string, hashedPassword string) (string, error) {
 	tx, err := conn.Begin(ctx)
 	if err != nil {
 		return "", err
@@ -70,8 +70,8 @@ func createUserPassword(ctx context.Context, conn *pgx.Conn, queries *db.Queries
 		return "", err
 	}
 	userId, err = qtx.CreateUserPassword(ctx, db.CreateUserPasswordParams{
-		ID:                userId,
-		EncryptedPassword: encryptedPassword,
+		ID:             userId,
+		HashedPassword: hashedPassword,
 	})
 	if err != nil {
 		return "", fmt.Errorf("Couldn't create a password: %w", err)
@@ -82,13 +82,13 @@ func createUserPassword(ctx context.Context, conn *pgx.Conn, queries *db.Queries
 	return userId.String(), nil
 }
 
-func encryptPassword(password string) (string, error) {
+func hashPassword(password string) (string, error) {
 	passBytes, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	return string(passBytes), err
 }
 
-func isValidPassword(encryptedPassword string, inputPassword string) bool {
-	err := bcrypt.CompareHashAndPassword([]byte(encryptedPassword), []byte(inputPassword))
+func isValidPassword(hashedPassword string, inputPassword string) bool {
+	err := bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(inputPassword))
 	if err != nil {
 		return false
 	}
@@ -105,7 +105,7 @@ func main() {
 	defer conn.Close(context.Background())
 
 	queries := db.New(conn)
-	id, err := createUser(context.Background(), conn, queries, "Prajwal 8", "prajwalpatil8@gmail.com")
+	id, err := createUser(context.Background(), conn, queries, "Prajwal 9", "prajwalpatil9@gmail.com")
 	if err != nil {
 		if errors.Is(err, ErrEmailAlreadyExists) {
 			fmt.Println("DUPLICATE USER: ", err)
@@ -117,22 +117,21 @@ func main() {
 	printUsers(queries)
 
 	testPwd := "thisisatestpassword"
-	encryptedPass, err := encryptPassword(testPwd)
+	hashed, err := hashPassword(testPwd)
 	if err != nil {
-		fmt.Println("Couldn't encrypt the password: ", err)
+		fmt.Println("Couldn't hash the password: ", err)
 	}
-	id, err = createUserPassword(context.Background(), conn, queries, id, encryptedPass)
+	id, err = createUserPassword(context.Background(), conn, queries, id, hashed)
 	if err != nil {
 		fmt.Println(err)
 	}
 
 	userId, err := uuid.Parse(id)
-	encryptedPassword, err := queries.GetUserPassword(context.Background(), userId)
+	hashedPass, err := queries.GetUserPassword(context.Background(), userId)
 	if err != nil {
 		fmt.Println("Error getting password: ", err)
 	}
-	fmt.Println("Encrypted Password: ", encryptedPassword)
-
-	fmt.Println("Is Valid Password: ", isValidPassword(encryptedPassword, testPwd))
+	fmt.Println("Encrypted Password: ", hashedPass)
+	fmt.Println("Is Valid Password: ", isValidPassword(hashedPass, testPwd))
 
 }
