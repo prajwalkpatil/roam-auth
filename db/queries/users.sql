@@ -20,11 +20,7 @@ INSERT INTO auth.passwords (id, encrypted_password)
 VALUES ($1, $2)
 RETURNING id;
 
--- name: GetUserPasswords :many
-SELECT auth.passwords.id AS id, 
-auth.users.email AS email, 
-auth.passwords.encrypted_password AS password 
+-- name: GetUserPassword :one
+SELECT encrypted_password 
 FROM auth.passwords
-INNER JOIN auth.users
-ON auth.users.id = auth.passwords.id
-LIMIT $1 OFFSET $2;
+WHERE id = $1;

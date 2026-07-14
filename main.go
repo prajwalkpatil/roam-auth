@@ -26,17 +26,6 @@ func printUsers(queries *db.Queries) {
 	fmt.Printf("Query result: %v", res)
 }
 
-func printPasswords(queries *db.Queries) {
-	res, err := queries.GetUserPasswords(context.Background(), db.GetUserPasswordsParams{
-		Limit:  10,
-		Offset: 0,
-	})
-	if err != nil {
-		fmt.Println("Failed to execute the query: ", err)
-	}
-	fmt.Printf("Query result: %v", res)
-}
-
 func createUser(ctx context.Context, conn *pgx.Conn, queries *db.Queries, name string, email string) (string, error) {
 	tx, err := conn.Begin(ctx)
 	if err != nil {
@@ -100,13 +89,25 @@ func main() {
 	defer conn.Close(context.Background())
 
 	queries := db.New(conn)
-	_, err = createUser(context.Background(), conn, queries, "Prajwal 2", "prajwalpatil2@gmail.com")
+	id, err := createUser(context.Background(), conn, queries, "Prajwal 5", "prajwalpatil5@gmail.com")
 	if err != nil {
 		if errors.Is(err, ErrEmailAlreadyExists) {
 			fmt.Println("DUPLICATE USER: ", err)
 		} else {
 			fmt.Println(err)
 		}
+		os.Exit(1)
 	}
 	printUsers(queries)
+	id, err = createUserPassword(context.Background(), conn, queries, id, "Thisisatestpassword")
+	if err != nil {
+		fmt.Println("Couldn't create password: ", err)
+	}
+	userId, err := uuid.Parse(id)
+	password, err := queries.GetUserPassword(context.Background(), userId)
+	if err != nil {
+		fmt.Println("Error getting password: ", err)
+	}
+	fmt.Println("Password: ", password)
+
 }

@@ -61,45 +61,17 @@ func (q *Queries) CreateUserPassword(ctx context.Context, arg CreateUserPassword
 	return id, err
 }
 
-const getUserPasswords = `-- name: GetUserPasswords :many
-SELECT auth.passwords.id AS id, 
-auth.users.email AS email, 
-auth.passwords.encrypted_password AS password 
+const getUserPassword = `-- name: GetUserPassword :one
+SELECT encrypted_password 
 FROM auth.passwords
-INNER JOIN auth.users
-ON auth.users.id = auth.passwords.id
-LIMIT $1 OFFSET $2
+WHERE id = $1
 `
 
-type GetUserPasswordsParams struct {
-	Limit  int32
-	Offset int32
-}
-
-type GetUserPasswordsRow struct {
-	ID       uuid.UUID
-	Email    string
-	Password string
-}
-
-func (q *Queries) GetUserPasswords(ctx context.Context, arg GetUserPasswordsParams) ([]GetUserPasswordsRow, error) {
-	rows, err := q.db.Query(ctx, getUserPasswords, arg.Limit, arg.Offset)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []GetUserPasswordsRow
-	for rows.Next() {
-		var i GetUserPasswordsRow
-		if err := rows.Scan(&i.ID, &i.Email, &i.Password); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
+func (q *Queries) GetUserPassword(ctx context.Context, id uuid.UUID) (string, error) {
+	row := q.db.QueryRow(ctx, getUserPassword, id)
+	var encrypted_password string
+	err := row.Scan(&encrypted_password)
+	return encrypted_password, err
 }
 
 const getUsers = `-- name: GetUsers :many
