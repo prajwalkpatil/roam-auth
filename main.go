@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/joho/godotenv"
+	"golang.org/x/crypto/bcrypt"
 )
 
 var ErrEmailAlreadyExists error = errors.New("Email already exists")
@@ -72,11 +73,26 @@ func createUserPassword(ctx context.Context, conn *pgx.Conn, queries *db.Queries
 		ID:                userId,
 		EncryptedPassword: encryptedPassword,
 	})
-
+	if err != nil {
+		return "", fmt.Errorf("Couldn't create a password: %w", err)
+	}
 	if err := tx.Commit(ctx); err != nil {
 		return "", err
 	}
 	return userId.String(), nil
+}
+
+func encryptPassword(password string) (string, error) {
+	passBytes, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	return string(passBytes), err
+}
+
+func isValidPassword(encryptedPassword string, inputPassword string) bool {
+	err := bcrypt.CompareHashAndPassword([]byte(encryptedPassword), []byte(inputPassword))
+	if err != nil {
+		return false
+	}
+	return true
 }
 
 func main() {
@@ -89,7 +105,7 @@ func main() {
 	defer conn.Close(context.Background())
 
 	queries := db.New(conn)
-	id, err := createUser(context.Background(), conn, queries, "Prajwal 5", "prajwalpatil5@gmail.com")
+	id, err := createUser(context.Background(), conn, queries, "Prajwal 8", "prajwalpatil8@gmail.com")
 	if err != nil {
 		if errors.Is(err, ErrEmailAlreadyExists) {
 			fmt.Println("DUPLICATE USER: ", err)
@@ -99,15 +115,24 @@ func main() {
 		os.Exit(1)
 	}
 	printUsers(queries)
-	id, err = createUserPassword(context.Background(), conn, queries, id, "Thisisatestpassword")
+
+	testPwd := "thisisatestpassword"
+	encryptedPass, err := encryptPassword(testPwd)
 	if err != nil {
-		fmt.Println("Couldn't create password: ", err)
+		fmt.Println("Couldn't encrypt the password: ", err)
 	}
+	id, err = createUserPassword(context.Background(), conn, queries, id, encryptedPass)
+	if err != nil {
+		fmt.Println(err)
+	}
+
 	userId, err := uuid.Parse(id)
-	password, err := queries.GetUserPassword(context.Background(), userId)
+	encryptedPassword, err := queries.GetUserPassword(context.Background(), userId)
 	if err != nil {
 		fmt.Println("Error getting password: ", err)
 	}
-	fmt.Println("Password: ", password)
+	fmt.Println("Encrypted Password: ", encryptedPassword)
+
+	fmt.Println("Is Valid Password: ", isValidPassword(encryptedPassword, testPwd))
 
 }
