@@ -10,7 +10,6 @@ import { Label } from "./components/ui/label"
 export function App() {
   return (
     <div className="flex justify-center border-2 h-screen items-center">
-
       <Card className="w-1/4">
         <CardHeader>
           <CardTitle>Login</CardTitle>
