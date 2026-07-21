@@ -13,7 +13,7 @@ export function App() {
           <CardDescription>Enter your email below to login to your account</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-col gap-5 pt-3">
+          <div className="flex flex-col gap-6 pt-3">
             <Field>
               <FieldLabel htmlFor="input-email">Email</FieldLabel>
               <Input id="input-email" type="text" placeholder="Enter Email Address" />
