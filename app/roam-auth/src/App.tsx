@@ -1,12 +1,16 @@
 import Login from "@/pages/Login"
 import Signup from "@/pages/Signup"
 
+import { BrowserRouter, Routes, Route } from "react-router-dom"
+
 export function App() {
   return (
-    <div>
-      <Login></Login>
-      {/* <Signup></Signup> */}
-    </div>
+    <BrowserRouter>
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route path="/signup" element={<Signup />} />
+      </Routes>
+    </BrowserRouter>
   )
 }
 

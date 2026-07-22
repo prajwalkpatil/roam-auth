@@ -4,6 +4,8 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 
+import { Link } from "react-router-dom"
+
 
 export default function Signup() {
   return (
@@ -33,7 +35,7 @@ export default function Signup() {
           </div>
           <Label className="text-muted-foreground pt-5 justify-center flex flex-1">
             <div>
-              Already have an account? <a href="#" className="underline hover:text-foreground">Login</a>
+              Already have an account? <Link to="/login"className="underline hover:text-foreground">Login</Link>
             </div>
           </Label>
         </CardContent>

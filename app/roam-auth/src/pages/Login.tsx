@@ -4,6 +4,8 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 
+import { Link } from "react-router-dom"
+
 export default function Login() {
   return (
     <div className="flex justify-center h-screen items-center">
@@ -29,7 +31,7 @@ export default function Login() {
           </div>
           <Label className="text-muted-foreground pt-5 justify-center flex flex-1">
             <div>
-              Don't have an account? <a href="#" className="underline hover:text-foreground">Sign up</a>
+              Don't have an account? <Link to="/signup" className="underline hover:text-foreground">Sign up</Link>
             </div>
           </Label>
         </CardContent>
