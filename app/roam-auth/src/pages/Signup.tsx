@@ -9,7 +9,7 @@ import { Link } from "react-router-dom"
 
 export default function Signup() {
   return (
-    <div className="flex justify-center border-2 h-screen items-center">
+    <div className="flex justify-center h-screen items-center">
       <Card className="xl:w-2/7 lg:w-1/3 md:w-1/2 w-3/4">
         <CardHeader>
           <CardTitle>Sign Up</CardTitle>
