@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label"
 export default function Signup() {
   return (
     <div className="flex justify-center border-2 h-screen items-center">
-      <Card className="w-1/4">
+      <Card className="xl:w-1/4 lg:w-1/3 md:w-1/2 w-3/4">
         <CardHeader>
           <CardTitle>Sign Up</CardTitle>
           <CardDescription>Enter your details to create a new account</CardDescription>
@@ -17,7 +17,7 @@ export default function Signup() {
           <div className="flex flex-col gap-5 pt-3">
             <Field>
               <FieldLabel htmlFor="input-name">Name</FieldLabel>
-              <Input id="input-name" type="text" placeholder="Enter your Name" />
+              <Input id="input-name" type="text" placeholder="Enter your Name"/>
             </Field>
             <Field>
               <FieldLabel htmlFor="input-email">Email</FieldLabel>

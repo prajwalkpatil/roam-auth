@@ -6,8 +6,8 @@ import { Label } from "@/components/ui/label"
 
 export default function Login() {
   return (
-    <div className="flex justify-center border-2 h-screen items-center">
-      <Card className="w-1/4">
+    <div className="flex justify-center h-screen items-center">
+      <Card className="xl:w-1/4 lg:w-1/3 md:w-1/2 w-3/4">
         <CardHeader>
           <CardTitle>Login</CardTitle>
           <CardDescription>Enter your details below to login to your account</CardDescription>
@@ -16,14 +16,14 @@ export default function Login() {
           <div className="flex flex-col gap-6 pt-3">
             <Field>
               <FieldLabel htmlFor="input-email">Email</FieldLabel>
-              <Input id="input-email" type="text" placeholder="Enter Email Address" />
+              <Input id="input-email" type="text" placeholder="Enter your Email"/>
             </Field>
             <Field>
               <FieldLabel htmlFor="input-password" className="flex justify-between">
                 Password
                 <a className="text-end text-muted-foreground underline hover:text-foreground">Forgot Password?</a>
               </FieldLabel>
-              <Input id="input-password" type="password" placeholder="Enter Password" />
+              <Input id="input-password" type="password" placeholder="Enter your Password" />
             </Field>
             <Button>Login</Button>
           </div>
