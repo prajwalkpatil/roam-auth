@@ -29,7 +29,7 @@ export default function Login() {
   const {
     register,
     handleSubmit,
-    formState: { errors, isValid },
+    formState: { errors },
   } = useForm({
     resolver: zodResolver(Credentials),
   })
@@ -88,12 +88,7 @@ export default function Login() {
                   </Label>
                 )}
               </Field>
-              <Button
-                type="submit"
-                variant={!isValid ? "secondary" : "default"}
-              >
-                Login
-              </Button>
+              <Button type="submit">Login</Button>
             </div>
           </form>
           <Label className="flex flex-1 justify-center pt-5 text-muted-foreground">

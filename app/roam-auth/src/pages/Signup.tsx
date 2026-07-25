@@ -42,7 +42,7 @@ export default function Signup() {
   const {
     register,
     handleSubmit,
-    formState: { errors, isValid },
+    formState: { errors },
   } = useForm({
     resolver: zodResolver(User),
   })
@@ -133,11 +133,7 @@ export default function Signup() {
                   </Label>
                 )}
               </Field>
-              <Button
-                className="mt-2"
-                type="submit"
-                variant={!isValid ? "secondary" : "default"}
-              >
+              <Button className="mt-2" type="submit">
                 Sign Up
               </Button>
             </div>
