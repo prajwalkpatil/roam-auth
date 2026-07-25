@@ -11,11 +11,11 @@ import { Label } from "@/components/ui/label"
 
 
 const User = z.object({
-  name: z.string().min(1, "Name must not be empty").min(2, "Name must be atleast two characters"),
+  name: z.string().min(1, "Name should not be empty").min(2, "Name must be atleast two characters"),
   email: z.email({
     error: (issue) => issue.input === "" ? "Email should not be empty" : "Invalid Email Address"
   }),
-  password: z.string().min(6, "Password should be atleast 6 characters"),
+  password: z.string().min(1, "Password should not be empty").min(6, "Password should be atleast 6 characters"),
   confirmPassword: z.string()
 }).refine(data => data.password === data.confirmPassword, {
   "error": "Passwords do not match",
