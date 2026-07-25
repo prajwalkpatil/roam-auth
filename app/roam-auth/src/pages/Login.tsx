@@ -49,7 +49,7 @@ export default function Login() {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit(onSuccess)}>
-            <div className="flex flex-col gap-6 pt-3">
+            <div className="mt-3 flex flex-col gap-6">
               <Field>
                 <FieldLabel htmlFor="input-email">Email</FieldLabel>
                 <Input

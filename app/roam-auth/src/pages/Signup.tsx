@@ -62,7 +62,7 @@ export default function Signup() {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit(onSuccess)}>
-            <div className="flex flex-col gap-5 pt-3">
+            <div className="mt-3 flex flex-col gap-5">
               <Field>
                 <FieldLabel htmlFor="input-name">Name</FieldLabel>
                 <Input
