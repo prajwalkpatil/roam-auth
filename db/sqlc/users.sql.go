@@ -118,3 +118,53 @@ func (q *Queries) GetUsers(ctx context.Context, arg GetUsersParams) ([]GetUsersR
 	}
 	return items, nil
 }
+
+const addRefreshToken = `-- name: addRefreshToken :one
+INSERT INTO auth.tokens (id, refresh_token, expires_at)
+VALUES ($1, $2, $3)
+RETURNING id
+`
+
+type addRefreshTokenParams struct {
+	ID           uuid.UUID
+	RefreshToken string
+	ExpiresAt    pgtype.Timestamptz
+}
+
+func (q *Queries) addRefreshToken(ctx context.Context, arg addRefreshTokenParams) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, addRefreshToken, arg.ID, arg.RefreshToken, arg.ExpiresAt)
+	var id uuid.UUID
+	err := row.Scan(&id)
+	return id, err
+}
+
+const deleteRefreshToken = `-- name: deleteRefreshToken :execrows
+DELETE FROM auth.tokens
+WHERE id = $1 AND refresh_token = $2
+`
+
+type deleteRefreshTokenParams struct {
+	ID           uuid.UUID
+	RefreshToken string
+}
+
+func (q *Queries) deleteRefreshToken(ctx context.Context, arg deleteRefreshTokenParams) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteRefreshToken, arg.ID, arg.RefreshToken)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const deleteRefreshTokens = `-- name: deleteRefreshTokens :execrows
+DELETE FROM auth.tokens 
+WHERE id = $1
+`
+
+func (q *Queries) deleteRefreshTokens(ctx context.Context, id uuid.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteRefreshTokens, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}

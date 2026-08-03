@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"os"
@@ -95,6 +97,15 @@ func isValidPassword(hashedPassword string, inputPassword string) bool {
 	return true
 }
 
+func createRefreshToken() (string, error) {
+	b := make([]byte, 32)
+	_, err := rand.Read(b)
+	if err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(b), nil
+}
+
 func main() {
 	godotenv.Load()
 	conn, err := pgx.Connect(context.Background(), os.Getenv("DATABASE_URL"))
@@ -105,7 +116,7 @@ func main() {
 	defer conn.Close(context.Background())
 
 	queries := db.New(conn)
-	id, err := createUser(context.Background(), conn, queries, "Prajwal 9", "prajwalpatil9@gmail.com")
+	id, err := createUser(context.Background(), conn, queries, "Prajwal 10", "prajwalpatil10@gmail.com")
 	if err != nil {
 		if errors.Is(err, ErrEmailAlreadyExists) {
 			fmt.Println("DUPLICATE USER: ", err)

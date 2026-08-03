@@ -14,6 +14,12 @@ type AuthPassword struct {
 	HashedPassword string
 }
 
+type AuthToken struct {
+	ID           uuid.UUID
+	RefreshToken string
+	ExpiresAt    pgtype.Timestamptz
+}
+
 type AuthUser struct {
 	ID        uuid.UUID
 	Email     string

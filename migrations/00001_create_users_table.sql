@@ -12,6 +12,12 @@ CREATE TABLE auth.passwords (
     hashed_password VARCHAR(255) NOT NULL
 );
 
+CREATE TABLE auth.tokens (
+    id uuid REFERENCES auth.users(id) PRIMARY KEY,
+    refresh_token VARCHAR(32) NOT NULL,
+    expires_at TIMESTAMPTZ NOT NULL
+);
+
 CREATE TABLE public.users (
     id uuid REFERENCES auth.users(id) PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
@@ -19,8 +25,9 @@ CREATE TABLE public.users (
 );
 
 -- +goose Down
-DROP TABLE public.users;
-DROP TABLE auth.passwords;
-DROP TABLE auth.users;
+DROP TABLE IF EXISTS public.users;
+DROP TABLE IF EXISTS auth.passwords;
+DROP TABLE IF EXISTS auth.tokens;
+DROP TABLE IF EXISTS auth.users;
 
-DROP SCHEMA auth;
+DROP SCHEMA IF EXISTS auth;
