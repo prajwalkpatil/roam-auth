@@ -25,16 +25,20 @@ SELECT hashed_password
 FROM auth.passwords
 WHERE id = $1;
 
--- name: addRefreshToken :one
+-- name: AddRefreshToken :one
 INSERT INTO auth.tokens (id, refresh_token, expires_at)
 VALUES ($1, $2, $3)
 RETURNING id;
 
--- name: deleteRefreshTokens :execrows
+-- name: DeleteRefreshTokens :execrows
 DELETE FROM auth.tokens 
 WHERE id = $1;
 
--- name: deleteRefreshToken :execrows
+-- name: DeleteRefreshToken :execrows
 DELETE FROM auth.tokens
 WHERE id = $1 AND refresh_token = $2;
 
+-- name: GetRefreshToken :one
+SELECT id, refresh_token, expires_at
+FROM auth.tokens
+WHERE id = $1 AND refresh_token = $2;

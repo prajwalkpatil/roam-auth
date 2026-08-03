@@ -14,7 +14,7 @@ CREATE TABLE auth.passwords (
 
 CREATE TABLE auth.tokens (
     id uuid REFERENCES auth.users(id) PRIMARY KEY,
-    refresh_token VARCHAR(32) NOT NULL,
+    refresh_token VARCHAR(255) NOT NULL,
     expires_at TIMESTAMPTZ NOT NULL
 );
 
