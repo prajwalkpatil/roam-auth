@@ -19,6 +19,8 @@ import (
 )
 
 var ErrEmailAlreadyExists error = errors.New("Email already exists")
+var RefreshTokenNotFound error = errors.New("Refresh Token Not Found")
+var REFRESH_TOKEN_EXPIRY_DAYS int = 15
 
 func printUsers(queries *db.Queries) {
 	res, err := queries.GetUsers(context.Background(), db.GetUsersParams{
@@ -115,6 +117,86 @@ func generateRandomEmail() (string, error) {
 		return "", err
 	}
 	return hex.EncodeToString(b) + "@gmail.com", nil
+}
+
+func addNewRefreshToken(ctx context.Context, conn *pgx.Conn, queries *db.Queries, id string, token string) (db.AuthToken, error) {
+	var result db.AuthToken
+	tx, err := conn.Begin(ctx)
+	if err != nil {
+		return result, err
+	}
+	defer tx.Rollback(ctx)
+	qtx := queries.WithTx(tx)
+	uid, err := uuid.Parse(id)
+	if err != nil {
+		return result, err
+	}
+	result, err = qtx.AddRefreshToken(ctx, db.AddRefreshTokenParams{
+		ID:           uid,
+		RefreshToken: token,
+		ExpiresAt: pgtype.Timestamptz{
+			Time: time.Now().AddDate(0, 0, REFRESH_TOKEN_EXPIRY_DAYS),
+		},
+	})
+	if err := tx.Commit(ctx); err != nil {
+		return result, err
+	}
+	return result, nil
+}
+
+func isValidRefreshToken(ctx context.Context, queries *db.Queries, id string, token string) (bool, error) {
+	uid, err := uuid.Parse(id)
+	if err != nil {
+		return false, err
+	}
+	tokenResult, err := queries.GetRefreshToken(ctx, db.GetRefreshTokenParams{
+		ID:           uid,
+		RefreshToken: token,
+	})
+	if err != nil {
+		return false, err
+	}
+	return tokenResult.RefreshToken == token, nil
+}
+
+func replaceRefreshToken(ctx context.Context, conn *pgx.Conn, queries *db.Queries, id string, oldToken string, newToken string) (db.AuthToken, error) {
+	var result db.AuthToken
+	tx, err := conn.Begin(ctx)
+	if err != nil {
+		return result, err
+	}
+	defer tx.Rollback(ctx)
+
+	uid, err := uuid.Parse(id)
+	if err != nil {
+		return result, err
+	}
+
+	qtx := queries.WithTx(tx)
+	rowsAffected, err := qtx.DeleteRefreshToken(ctx, db.DeleteRefreshTokenParams{
+		ID:           uid,
+		RefreshToken: oldToken,
+	})
+	if rowsAffected == 0 {
+		return result, RefreshTokenNotFound
+	}
+
+	result, err = qtx.AddRefreshToken(ctx, db.AddRefreshTokenParams{
+		ID:           uid,
+		RefreshToken: newToken,
+		ExpiresAt: pgtype.Timestamptz{
+			Time: time.Now().AddDate(0, 0, REFRESH_TOKEN_EXPIRY_DAYS),
+		},
+	})
+
+	if err != nil {
+		return result, err
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return result, err
+	}
+	return result, nil
 }
 
 func main() {

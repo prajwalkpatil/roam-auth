@@ -15,7 +15,7 @@ import (
 const addRefreshToken = `-- name: AddRefreshToken :one
 INSERT INTO auth.tokens (id, refresh_token, expires_at)
 VALUES ($1, $2, $3)
-RETURNING id
+RETURNING id, refresh_token, expires_at
 `
 
 type AddRefreshTokenParams struct {
@@ -24,11 +24,11 @@ type AddRefreshTokenParams struct {
 	ExpiresAt    pgtype.Timestamptz
 }
 
-func (q *Queries) AddRefreshToken(ctx context.Context, arg AddRefreshTokenParams) (uuid.UUID, error) {
+func (q *Queries) AddRefreshToken(ctx context.Context, arg AddRefreshTokenParams) (AuthToken, error) {
 	row := q.db.QueryRow(ctx, addRefreshToken, arg.ID, arg.RefreshToken, arg.ExpiresAt)
-	var id uuid.UUID
-	err := row.Scan(&id)
-	return id, err
+	var i AuthToken
+	err := row.Scan(&i.ID, &i.RefreshToken, &i.ExpiresAt)
+	return i, err
 }
 
 const createAuthUser = `-- name: CreateAuthUser :one

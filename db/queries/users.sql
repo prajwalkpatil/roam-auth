@@ -28,7 +28,7 @@ WHERE id = $1;
 -- name: AddRefreshToken :one
 INSERT INTO auth.tokens (id, refresh_token, expires_at)
 VALUES ($1, $2, $3)
-RETURNING id;
+RETURNING id, refresh_token, expires_at;
 
 -- name: DeleteRefreshTokens :execrows
 DELETE FROM auth.tokens 
