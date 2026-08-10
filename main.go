@@ -6,6 +6,8 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"log"
+	"net/http"
 	"os"
 	db "roam-auth/db/sqlc"
 	"time"
@@ -103,19 +105,13 @@ func isValidPassword(hashedPassword string, inputPassword string) bool {
 
 func createRefreshToken() (string, error) {
 	b := make([]byte, 32)
-	_, err := rand.Read(b)
-	if err != nil {
-		return "", err
-	}
+	rand.Read(b)
 	return hex.EncodeToString(b), nil
 }
 
 func generateRandomEmail() (string, error) {
 	b := make([]byte, 10)
-	_, err := rand.Read(b)
-	if err != nil {
-		return "", err
-	}
+	rand.Read(b)
 	return hex.EncodeToString(b) + "@gmail.com", nil
 }
 
@@ -199,6 +195,11 @@ func replaceRefreshToken(ctx context.Context, conn *pgx.Conn, queries *db.Querie
 	return result, nil
 }
 
+func handleLogin(w http.ResponseWriter, req *http.Request) {
+	fmt.Println("/login called")
+	fmt.Fprintf(w, "Hello, World")
+}
+
 func main() {
 	godotenv.Load()
 	conn, err := pgx.Connect(context.Background(), os.Getenv("DATABASE_URL"))
@@ -263,5 +264,20 @@ func main() {
 	}
 
 	fmt.Println("Token Result: ", tokenResult)
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /login", func(w http.ResponseWriter, req *http.Request) {
+		fmt.Fprintf(w, "Hello, World")
+	})
+
+	srv := &http.Server{
+		Addr:         ":8000",
+		Handler:      mux,
+		ReadTimeout:  5 * time.Second,
+		WriteTimeout: 10 * time.Second,
+		IdleTimeout:  120 * time.Second,
+	}
+
+	log.Fatal(srv.ListenAndServe())
 
 }
