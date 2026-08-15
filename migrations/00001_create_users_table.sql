@@ -13,7 +13,7 @@ CREATE TABLE auth.passwords (
 );
 
 CREATE TABLE auth.tokens (
-    id uuid REFERENCES auth.users(id) PRIMARY KEY,
+    id uuid REFERENCES auth.users(id) NOT NULL,
     refresh_token VARCHAR(255) NOT NULL,
     expires_at TIMESTAMPTZ NOT NULL
 );

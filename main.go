@@ -36,72 +36,6 @@ type SignupRequest struct {
 	Password string `json:"password"`
 }
 
-func printUsers(queries *db.Queries) {
-	res, err := queries.GetUsers(context.Background(), db.GetUsersParams{
-		Limit:  10,
-		Offset: 0,
-	})
-	if err != nil {
-		fmt.Println("Failed to execute the query: ", err)
-	}
-	fmt.Printf("Query result: %v", res)
-}
-
-func createUser(ctx context.Context, conn *pgx.Conn, queries *db.Queries, name string, email string) (string, error) {
-	tx, err := conn.Begin(ctx)
-	if err != nil {
-		return "", err
-	}
-	defer tx.Rollback(ctx)
-
-	qtx := queries.WithTx(tx)
-
-	id, err := qtx.CreateAuthUser(ctx, email)
-	if err != nil {
-		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
-			return "", fmt.Errorf("%w: %v", ErrEmailAlreadyExists, err)
-		}
-		return "", err
-	}
-	id, err = qtx.CreatePublicUser(ctx, db.CreatePublicUserParams{
-		ID:   id,
-		Name: name,
-	})
-	if err != nil {
-		return "", err
-	}
-	if err := tx.Commit(ctx); err != nil {
-		return "", err
-	}
-	return id.String(), nil
-}
-
-func createUserPassword(ctx context.Context, conn *pgx.Conn, queries *db.Queries, id string, hashedPassword string) (string, error) {
-	tx, err := conn.Begin(ctx)
-	if err != nil {
-		return "", err
-	}
-	defer tx.Rollback(ctx)
-	qtx := queries.WithTx(tx)
-
-	userId, err := uuid.Parse(id)
-	if err != nil {
-		return "", err
-	}
-	userId, err = qtx.CreateUserPassword(ctx, db.CreateUserPasswordParams{
-		ID:             userId,
-		HashedPassword: hashedPassword,
-	})
-	if err != nil {
-		return "", fmt.Errorf("Couldn't create a password: %w", err)
-	}
-	if err := tx.Commit(ctx); err != nil {
-		return "", err
-	}
-	return userId.String(), nil
-}
-
 func hashPassword(password string) (string, error) {
 	passBytes, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	return string(passBytes), err
@@ -115,12 +49,46 @@ func isValidPassword(hashedPassword string, inputPassword string) bool {
 	return true
 }
 
-func loginUser(ctx context.Context, queries *db.Queries, payload LoginRequest) (bool, error) {
-	result, err := queries.GetUserPasswordFromEmail(ctx, payload.Email)
+func loginUser(ctx context.Context, conn *pgx.Conn, queries *db.Queries, payload LoginRequest) (bool, error) {
+	tx, err := conn.Begin(ctx)
 	if err != nil {
 		return false, err
 	}
-	return isValidPassword(result.HashedPassword, payload.Password), nil
+	defer tx.Rollback(ctx)
+	qtx := queries.WithTx(tx)
+	passwordResult, err := qtx.GetUserPasswordFromEmail(ctx, payload.Email)
+	if err != nil {
+		return false, err
+	}
+	fmt.Println("passwordResult: ", passwordResult)
+
+	isValid := isValidPassword(passwordResult.HashedPassword, payload.Password)
+	if !isValid {
+		return false, nil
+	}
+	fmt.Println("isValidPassword: ", isValid)
+	token, err := createRefreshToken()
+	if err != nil {
+		return false, nil
+	}
+	fmt.Println("Refresh token: ", token)
+	refreshResult, err := qtx.AddRefreshToken(ctx, db.AddRefreshTokenParams{
+		ID:           passwordResult.ID,
+		RefreshToken: token,
+		ExpiresAt: pgtype.Timestamptz{
+			Time:  time.Now().AddDate(0, 0, REFRESH_TOKEN_EXPIRY_DAYS),
+			Valid: true,
+		},
+	})
+	if err != nil {
+		fmt.Println("Error adding Refresh token: ", err)
+		return false, err
+	}
+	fmt.Println("Refresh token:", refreshResult)
+	if err := tx.Commit(ctx); err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 func signupUser(ctx context.Context, conn *pgx.Conn, queries *db.Queries, payload SignupRequest) (bool, error) {
@@ -184,7 +152,8 @@ func addNewRefreshToken(ctx context.Context, conn *pgx.Conn, queries *db.Queries
 		ID:           uid,
 		RefreshToken: token,
 		ExpiresAt: pgtype.Timestamptz{
-			Time: time.Now().AddDate(0, 0, REFRESH_TOKEN_EXPIRY_DAYS),
+			Time:  time.Now().AddDate(0, 0, REFRESH_TOKEN_EXPIRY_DAYS),
+			Valid: true,
 		},
 	})
 	if err := tx.Commit(ctx); err != nil {
@@ -234,7 +203,8 @@ func replaceRefreshToken(ctx context.Context, conn *pgx.Conn, queries *db.Querie
 		ID:           uid,
 		RefreshToken: newToken,
 		ExpiresAt: pgtype.Timestamptz{
-			Time: time.Now().AddDate(0, 0, REFRESH_TOKEN_EXPIRY_DAYS),
+			Time:  time.Now().AddDate(0, 0, REFRESH_TOKEN_EXPIRY_DAYS),
+			Valid: true,
 		},
 	})
 
@@ -277,7 +247,7 @@ func main() {
 			return
 		}
 		defer r.Body.Close()
-		success, err := loginUser(context.Background(), queries, payload)
+		success, err := loginUser(context.Background(), conn, queries, payload)
 		if err != nil {
 			fmt.Println("Login error: ", err)
 			http.Error(w, "Unable to login", http.StatusInternalServerError)
@@ -321,6 +291,6 @@ func main() {
 		IdleTimeout:  120 * time.Second,
 	}
 
+	fmt.Println("Listening on port:", 8000)
 	log.Fatal(srv.ListenAndServe())
-
 }
