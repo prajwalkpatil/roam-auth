@@ -38,7 +38,7 @@ type SignupRequest struct {
 
 type LoginResponse struct {
 	Email        string `json:"email"`
-	RefreshToken string `json:"refresh_token"`
+	RefreshToken string `json:"token"`
 	Valid        bool   `json:"-"`
 }
 
@@ -240,6 +240,16 @@ func handleLogin(w http.ResponseWriter, _ *http.Request) {
 	fmt.Fprintf(w, "Hello, World")
 }
 
+func createJWTCookie() *http.Cookie {
+	return &http.Cookie{
+		Name:     "jwt",
+		Value:    "TEST",
+		Path:     "/",
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+	}
+}
+
 func main() {
 	godotenv.Load()
 	conn, err := pgx.Connect(context.Background(), os.Getenv("DATABASE_URL"))
@@ -274,6 +284,7 @@ func main() {
 			http.Error(w, "Invalid Password", http.StatusBadRequest)
 			return
 		}
+		http.SetCookie(w, createJWTCookie())
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(loginResponse)
 	})
