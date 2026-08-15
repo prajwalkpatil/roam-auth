@@ -25,6 +25,13 @@ SELECT hashed_password
 FROM auth.passwords
 WHERE id = $1;
 
+-- name: GetUserPasswordFromEmail :one
+SELECT auth.users.id as id, auth.users.email as email, hashed_password
+FROM auth.users
+INNER JOIN auth.passwords 
+ON auth.users.id = auth.passwords.id
+WHERE auth.users.email = $1;
+
 -- name: AddRefreshToken :one
 INSERT INTO auth.tokens (id, refresh_token, expires_at)
 VALUES ($1, $2, $3)

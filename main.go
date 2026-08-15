@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -23,6 +24,11 @@ import (
 var ErrEmailAlreadyExists error = errors.New("Email already exists")
 var RefreshTokenNotFound error = errors.New("Refresh Token Not Found")
 var REFRESH_TOKEN_EXPIRY_DAYS int = 15
+
+type LoginRequest struct {
+	Email    string `json:"email"`
+	Password string `json:"password"`
+}
 
 func printUsers(queries *db.Queries) {
 	res, err := queries.GetUsers(context.Background(), db.GetUsersParams{
@@ -101,6 +107,15 @@ func isValidPassword(hashedPassword string, inputPassword string) bool {
 		return false
 	}
 	return true
+}
+
+func loginUser(ctx context.Context, queries *db.Queries, request LoginRequest) (bool, error) {
+	result, err := queries.GetUserPasswordFromEmail(ctx, request.Email)
+	if err != nil {
+		return false, err
+	}
+	hashedPassword := result.HashedPassword
+	return isValidPassword(hashedPassword, request.Password), nil
 }
 
 func createRefreshToken() (string, error) {
@@ -268,6 +283,23 @@ func main() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /login", func(w http.ResponseWriter, req *http.Request) {
 		fmt.Fprintf(w, "Hello, World")
+	})
+
+	mux.HandleFunc("POST /login", func(w http.ResponseWriter, r *http.Request) {
+		var payload LoginRequest
+		err := json.NewDecoder(r.Body).Decode(&payload)
+		if err != nil {
+			fmt.Println("JSON decode error", err)
+			http.Error(w, "Invalid JSON payload", http.StatusBadRequest)
+			return
+		}
+		defer r.Body.Close()
+		success, err := loginUser(context.Background(), queries, payload)
+		if success {
+			fmt.Fprintf(w, "Hello %s!", payload.Email)
+		} else {
+			fmt.Fprintf(w, "Invalid password for - %s", payload.Email)
+		}
 	})
 
 	srv := &http.Server{

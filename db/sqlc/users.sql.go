@@ -142,6 +142,27 @@ func (q *Queries) GetUserPassword(ctx context.Context, id uuid.UUID) (string, er
 	return hashed_password, err
 }
 
+const getUserPasswordFromEmail = `-- name: GetUserPasswordFromEmail :one
+SELECT auth.users.id as id, auth.users.email as email, hashed_password
+FROM auth.users
+INNER JOIN auth.passwords 
+ON auth.users.id = auth.passwords.id
+WHERE auth.users.email = $1
+`
+
+type GetUserPasswordFromEmailRow struct {
+	ID             uuid.UUID
+	Email          string
+	HashedPassword string
+}
+
+func (q *Queries) GetUserPasswordFromEmail(ctx context.Context, email string) (GetUserPasswordFromEmailRow, error) {
+	row := q.db.QueryRow(ctx, getUserPasswordFromEmail, email)
+	var i GetUserPasswordFromEmailRow
+	err := row.Scan(&i.ID, &i.Email, &i.HashedPassword)
+	return i, err
+}
+
 const getUsers = `-- name: GetUsers :many
 SELECT public.users.id AS id, name, email, created_at 
 FROM public.users
