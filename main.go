@@ -36,6 +36,12 @@ type SignupRequest struct {
 	Password string `json:"password"`
 }
 
+type LoginResponse struct {
+	Email        string `json:"email"`
+	RefreshToken string `json:"refresh_token"`
+	Valid        bool
+}
+
 func hashPassword(password string) (string, error) {
 	passBytes, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	return string(passBytes), err
@@ -49,27 +55,28 @@ func isValidPassword(hashedPassword string, inputPassword string) bool {
 	return true
 }
 
-func loginUser(ctx context.Context, conn *pgx.Conn, queries *db.Queries, payload LoginRequest) (bool, error) {
+func loginUser(ctx context.Context, conn *pgx.Conn, queries *db.Queries, payload LoginRequest) (LoginResponse, error) {
+	var response LoginResponse
 	tx, err := conn.Begin(ctx)
 	if err != nil {
-		return false, err
+		return response, err
 	}
 	defer tx.Rollback(ctx)
 	qtx := queries.WithTx(tx)
 	passwordResult, err := qtx.GetUserPasswordFromEmail(ctx, payload.Email)
 	if err != nil {
-		return false, err
+		return response, err
 	}
 	fmt.Println("passwordResult: ", passwordResult)
 
 	isValid := isValidPassword(passwordResult.HashedPassword, payload.Password)
 	if !isValid {
-		return false, nil
+		return response, nil
 	}
 	fmt.Println("isValidPassword: ", isValid)
 	token, err := createRefreshToken()
 	if err != nil {
-		return false, nil
+		return response, nil
 	}
 	fmt.Println("Refresh token: ", token)
 	refreshResult, err := qtx.AddRefreshToken(ctx, db.AddRefreshTokenParams{
@@ -82,13 +89,18 @@ func loginUser(ctx context.Context, conn *pgx.Conn, queries *db.Queries, payload
 	})
 	if err != nil {
 		fmt.Println("Error adding Refresh token: ", err)
-		return false, err
+		return response, err
 	}
 	fmt.Println("Refresh token:", refreshResult)
 	if err := tx.Commit(ctx); err != nil {
-		return false, err
+		return response, err
 	}
-	return true, nil
+	response = LoginResponse{
+		Email:        payload.Email,
+		RefreshToken: refreshResult.RefreshToken,
+		Valid:        true,
+	}
+	return response, nil
 }
 
 func signupUser(ctx context.Context, conn *pgx.Conn, queries *db.Queries, payload SignupRequest) (bool, error) {
@@ -247,14 +259,15 @@ func main() {
 			return
 		}
 		defer r.Body.Close()
-		success, err := loginUser(context.Background(), conn, queries, payload)
+		loginResponse, err := loginUser(context.Background(), conn, queries, payload)
 		if err != nil {
 			fmt.Println("Login error: ", err)
 			http.Error(w, "Unable to login", http.StatusInternalServerError)
 			return
 		}
-		if success {
-			fmt.Fprintf(w, "Hello %s!", payload.Email)
+		if loginResponse.Valid {
+			fmt.Println("Login Response:", loginResponse)
+			fmt.Fprintf(w, "Hello %s!", loginResponse.Email)
 		} else {
 			http.Error(w, "Invalid Password", http.StatusBadRequest)
 		}
