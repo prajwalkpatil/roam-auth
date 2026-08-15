@@ -39,7 +39,7 @@ type SignupRequest struct {
 type LoginResponse struct {
 	Email        string `json:"email"`
 	RefreshToken string `json:"refresh_token"`
-	Valid        bool
+	Valid        bool   `json:"-"`
 }
 
 func hashPassword(password string) (string, error) {
@@ -175,18 +175,23 @@ func addNewRefreshToken(ctx context.Context, conn *pgx.Conn, queries *db.Queries
 }
 
 func isValidRefreshToken(ctx context.Context, queries *db.Queries, id string, token string) (bool, error) {
-	uid, err := uuid.Parse(id)
+	tokenResult, err := findRefreshToken(ctx, queries, id, token)
 	if err != nil {
 		return false, err
 	}
-	tokenResult, err := queries.GetRefreshToken(ctx, db.GetRefreshTokenParams{
+	expiryTime := tokenResult.ExpiresAt.Time
+	return (tokenResult.RefreshToken == token) && expiryTime.After(time.Now()), nil
+}
+
+func findRefreshToken(ctx context.Context, queries *db.Queries, id string, token string) (db.AuthToken, error) {
+	uid, err := uuid.Parse(id)
+	if err != nil {
+		return db.AuthToken{}, err
+	}
+	return queries.GetRefreshToken(ctx, db.GetRefreshTokenParams{
 		ID:           uid,
 		RefreshToken: token,
 	})
-	if err != nil {
-		return false, err
-	}
-	return tokenResult.RefreshToken == token, nil
 }
 
 func replaceRefreshToken(ctx context.Context, conn *pgx.Conn, queries *db.Queries, id string, oldToken string, newToken string) (db.AuthToken, error) {
@@ -265,12 +270,12 @@ func main() {
 			http.Error(w, "Unable to login", http.StatusInternalServerError)
 			return
 		}
-		if loginResponse.Valid {
-			fmt.Println("Login Response:", loginResponse)
-			fmt.Fprintf(w, "Hello %s!", loginResponse.Email)
-		} else {
+		if !loginResponse.Valid {
 			http.Error(w, "Invalid Password", http.StatusBadRequest)
+			return
 		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(loginResponse)
 	})
 
 	mux.HandleFunc("POST /signup", func(w http.ResponseWriter, r *http.Request) {
