@@ -30,6 +30,12 @@ type LoginRequest struct {
 	Password string `json:"password"`
 }
 
+type SignupRequest struct {
+	Name     string `json:"name"`
+	Email    string `json:"email"`
+	Password string `json:"password"`
+}
+
 func printUsers(queries *db.Queries) {
 	res, err := queries.GetUsers(context.Background(), db.GetUsersParams{
 		Limit:  10,
@@ -109,13 +115,51 @@ func isValidPassword(hashedPassword string, inputPassword string) bool {
 	return true
 }
 
-func loginUser(ctx context.Context, queries *db.Queries, request LoginRequest) (bool, error) {
-	result, err := queries.GetUserPasswordFromEmail(ctx, request.Email)
+func loginUser(ctx context.Context, queries *db.Queries, payload LoginRequest) (bool, error) {
+	result, err := queries.GetUserPasswordFromEmail(ctx, payload.Email)
 	if err != nil {
 		return false, err
 	}
-	hashedPassword := result.HashedPassword
-	return isValidPassword(hashedPassword, request.Password), nil
+	return isValidPassword(result.HashedPassword, payload.Password), nil
+}
+
+func signupUser(ctx context.Context, conn *pgx.Conn, queries *db.Queries, payload SignupRequest) (bool, error) {
+	tx, err := conn.Begin(ctx)
+	if err != nil {
+		return false, err
+	}
+	defer tx.Rollback(ctx)
+
+	qtx := queries.WithTx(tx)
+
+	id, err := qtx.CreateAuthUser(ctx, payload.Email)
+	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+			return false, fmt.Errorf("%w: %v", ErrEmailAlreadyExists, err)
+		}
+		return false, err
+	}
+	id, err = qtx.CreatePublicUser(ctx, db.CreatePublicUserParams{
+		ID:   id,
+		Name: payload.Name,
+	})
+	if err != nil {
+		return false, err
+	}
+	hashedPassword, err := hashPassword(payload.Password)
+	if err != nil {
+		return false, err
+	}
+	_, err = qtx.CreateUserPassword(ctx, db.CreateUserPasswordParams{
+		ID:             id,
+		HashedPassword: hashedPassword,
+	})
+
+	if err := tx.Commit(ctx); err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 func createRefreshToken() (string, error) {
@@ -295,11 +339,39 @@ func main() {
 		}
 		defer r.Body.Close()
 		success, err := loginUser(context.Background(), queries, payload)
+		if err != nil {
+			fmt.Println("Login error: ", err)
+			http.Error(w, "Unable to login", http.StatusInternalServerError)
+			return
+		}
 		if success {
 			fmt.Fprintf(w, "Hello %s!", payload.Email)
 		} else {
-			fmt.Fprintf(w, "Invalid password for - %s", payload.Email)
+			http.Error(w, "Invalid Password", http.StatusBadRequest)
 		}
+	})
+
+	mux.HandleFunc("POST /signup", func(w http.ResponseWriter, r *http.Request) {
+		var payload SignupRequest
+		err := json.NewDecoder(r.Body).Decode(&payload)
+		if err != nil {
+			fmt.Println("JSON decode error", err)
+			http.Error(w, "Invalid JSON payload", http.StatusBadRequest)
+			return
+		}
+		defer r.Body.Close()
+
+		_, err = signupUser(context.Background(), conn, queries, payload)
+		if err != nil {
+			if errors.Is(err, ErrEmailAlreadyExists) {
+				http.Error(w, "Email already exists", http.StatusBadRequest)
+			} else {
+				http.Error(w, "Couldn't create the account", http.StatusInternalServerError)
+			}
+			fmt.Printf("Signup error: %s", err)
+			return
+		}
+		fmt.Fprintf(w, "User registered %s!", payload.Name)
 	})
 
 	srv := &http.Server{
