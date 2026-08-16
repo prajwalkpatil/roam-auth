@@ -244,6 +244,24 @@ func createRefreshCookie(token string) *http.Cookie {
 	}
 }
 
+func deleteRefreshToken(ctx context.Context, queries *db.Queries, id string, refreshToken string) (bool, error) {
+	uid, err := uuid.Parse(id)
+	if err != nil {
+		return false, err
+	}
+	result, err := queries.DeleteRefreshToken(ctx, db.DeleteRefreshTokenParams{
+		ID:           uid,
+		RefreshToken: refreshToken,
+	})
+	if err != nil {
+		return false, err
+	}
+	if result < 1 {
+		return false, nil
+	}
+	return true, nil
+}
+
 func parseJWTClaims(tokenString string, signingKey []byte) (*UserJWTClaims, error) {
 	parsedToken, err := jwt.ParseWithClaims(tokenString, &UserJWTClaims{}, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
@@ -369,6 +387,26 @@ func main() {
 		}
 		fmt.Fprintf(w, "User registered %s!", payload.Name)
 	})
+
+	mux.Handle("POST /logout", authMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		claims, ok := r.Context().Value(CLAIMS_CONTEXT_KEY).(*UserJWTClaims)
+		if !ok {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		id := claims.ID
+		refreshCookie, err := r.Cookie(REFRESH_TOKEN_COOKIE_NAME)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		success, err := deleteRefreshToken(context.Background(), queries, id, refreshCookie.Value)
+		if err != nil || !success {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+	})))
 
 	mux.Handle("GET /", authMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		claims, _ := r.Context().Value(CLAIMS_CONTEXT_KEY).(*UserJWTClaims)
