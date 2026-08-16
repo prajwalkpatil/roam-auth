@@ -23,9 +23,15 @@ import (
 )
 
 var ErrEmailAlreadyExists error = errors.New("Email already exists")
-var RefreshTokenNotFound error = errors.New("Refresh Token Not Found")
+var ErrRefreshTokenNotFound error = errors.New("Refresh Token Not Found")
+var ErrInvalidJWT error = errors.New("Invalid JWT")
+var ErrExpiredJWT error = errors.New("Expired JWT")
+
 var REFRESH_TOKEN_EXPIRY_DAYS int = 15
+
+var JWT_COOKIE_NAME string = "Token"
 var JWT_EXPIRY_MINUTES int = 15
+var JWT_SIGNING_ALGO = jwt.SigningMethodHS256
 
 type LoginRequest struct {
 	Email    string `json:"email"`
@@ -223,7 +229,7 @@ func replaceRefreshToken(ctx context.Context, conn *pgx.Conn, queries *db.Querie
 		RefreshToken: oldToken,
 	})
 	if rowsAffected == 0 {
-		return result, RefreshTokenNotFound
+		return result, ErrRefreshTokenNotFound
 	}
 
 	result, err = qtx.AddRefreshToken(ctx, db.AddRefreshTokenParams{
@@ -254,7 +260,7 @@ func createJWTString(id string, email string, signingKey []byte) (string, error)
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Duration(JWT_EXPIRY_MINUTES) * time.Minute)),
 		},
 	}
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	token := jwt.NewWithClaims(JWT_SIGNING_ALGO, claims)
 	tokenString, err := token.SignedString(signingKey)
 	if err != nil {
 		return "", err
@@ -268,12 +274,32 @@ func createJWTCookie(id string, email string, signingKey []byte) (*http.Cookie, 
 		return nil, err
 	}
 	return &http.Cookie{
-		Name:     "Token",
+		Name:     JWT_COOKIE_NAME,
 		Value:    tokenString,
 		Path:     "/",
 		HttpOnly: true,
 		SameSite: http.SameSiteLaxMode,
 	}, nil
+}
+
+func parseJWTClaims(tokenString string, signingKey []byte) (*UserJWTClaims, error) {
+	parsedToken, err := jwt.ParseWithClaims(tokenString, &UserJWTClaims{}, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, ErrInvalidJWT
+		}
+		return signingKey, nil
+	})
+	if err != nil {
+		if errors.Is(err, jwt.ErrTokenExpired) {
+			return nil, ErrExpiredJWT
+		}
+		return nil, err
+	}
+	claims, ok := parsedToken.Claims.(*UserJWTClaims)
+	if !ok || !parsedToken.Valid {
+		return nil, ErrInvalidJWT
+	}
+	return claims, nil
 }
 
 func main() {
@@ -284,15 +310,11 @@ func main() {
 		os.Exit(1)
 	}
 	defer conn.Close(context.Background())
+
+	jwtSigningKey := []byte(os.Getenv("JWT_SIGNING_KEY"))
 	queries := db.New(conn)
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("GET /login", func(w http.ResponseWriter, req *http.Request) {
-		fmt.Fprintf(w, "Hello, World")
-	})
-
-	jwtSigningKey := []byte(os.Getenv("JWT_SIGNING_KEY"))
-
 	mux.HandleFunc("POST /login", func(w http.ResponseWriter, r *http.Request) {
 		var payload LoginRequest
 		err := json.NewDecoder(r.Body).Decode(&payload)
@@ -343,6 +365,23 @@ func main() {
 			return
 		}
 		fmt.Fprintf(w, "User registered %s!", payload.Name)
+	})
+
+	mux.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
+		jwtCookie, err := r.Cookie(JWT_COOKIE_NAME)
+		if err != nil {
+			fmt.Println("Cookie error:", err)
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+		claims, err := parseJWTClaims(jwtCookie.Value, jwtSigningKey)
+		if err != nil {
+			fmt.Println("JWT error:", err)
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+		fmt.Println("User claims:", *claims)
+		fmt.Fprintf(w, "Hello, World")
 	})
 
 	srv := &http.Server{
