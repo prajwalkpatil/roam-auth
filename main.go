@@ -51,8 +51,6 @@ type UserJWTClaims struct {
 	jwt.RegisteredClaims
 }
 
-var JWTSigningKey = []byte(os.Getenv("JWT_SIGNING_KEY"))
-
 func hashPassword(password string) (string, error) {
 	passBytes, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	return string(passBytes), err
@@ -252,7 +250,7 @@ func handleLogin(w http.ResponseWriter, _ *http.Request) {
 	fmt.Fprintf(w, "Hello, World")
 }
 
-func createJWTString(id string, email string) (string, error) {
+func createJWTString(id string, email string, signingKey []byte) (string, error) {
 	claims := UserJWTClaims{
 		ID:    id,
 		Email: email,
@@ -262,15 +260,15 @@ func createJWTString(id string, email string) (string, error) {
 		},
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	tokenString, err := token.SignedString(JWTSigningKey)
+	tokenString, err := token.SignedString(signingKey)
 	if err != nil {
 		return "", err
 	}
 	return tokenString, err
 }
 
-func createJWTCookie(id string, email string) (*http.Cookie, error) {
-	tokenString, err := createJWTString(id, email)
+func createJWTCookie(id string, email string, signingKey []byte) (*http.Cookie, error) {
+	tokenString, err := createJWTString(id, email, signingKey)
 	if err != nil {
 		return nil, err
 	}
@@ -298,6 +296,8 @@ func main() {
 		fmt.Fprintf(w, "Hello, World")
 	})
 
+	jwtSigningKey := []byte(os.Getenv("JWT_SIGNING_KEY"))
+
 	mux.HandleFunc("POST /login", func(w http.ResponseWriter, r *http.Request) {
 		var payload LoginRequest
 		err := json.NewDecoder(r.Body).Decode(&payload)
@@ -317,7 +317,7 @@ func main() {
 			http.Error(w, "Invalid Password", http.StatusBadRequest)
 			return
 		}
-		jwtCookie, err := createJWTCookie(loginResponse.ID, loginResponse.Email)
+		jwtCookie, err := createJWTCookie(loginResponse.ID, loginResponse.Email, jwtSigningKey)
 		if err != nil {
 			http.Error(w, "Unable to login", http.StatusInternalServerError)
 			return
