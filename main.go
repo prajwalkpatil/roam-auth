@@ -245,11 +245,6 @@ func replaceRefreshToken(ctx context.Context, conn *pgx.Conn, queries *db.Querie
 	return result, nil
 }
 
-func handleLogin(w http.ResponseWriter, _ *http.Request) {
-	fmt.Println("/login called")
-	fmt.Fprintf(w, "Hello, World")
-}
-
 func createJWTString(id string, email string, signingKey []byte) (string, error) {
 	claims := UserJWTClaims{
 		ID:    id,
