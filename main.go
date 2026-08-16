@@ -27,6 +27,7 @@ var ErrEmailAlreadyExists error = errors.New("Email already exists")
 var ErrRefreshTokenNotFound error = errors.New("Refresh Token Not Found")
 var ErrInvalidJWT error = errors.New("Invalid JWT")
 var ErrExpiredJWT error = errors.New("Expired JWT")
+var ErrInvalidPassword error = errors.New("Invalid Password")
 
 var REFRESH_TOKEN_EXPIRY_DAYS int = 15
 var REFRESH_TOKEN_COOKIE_NAME string = "Token"
@@ -129,7 +130,7 @@ func loginUser(ctx context.Context, conn *pgx.Conn, queries *db.Queries, payload
 
 	isValid := isValidPassword(passwordResult.HashedPassword, payload.Password)
 	if !isValid {
-		return nil, nil
+		return nil, ErrInvalidPassword
 	}
 	fmt.Println("isValidPassword: ", isValid)
 
@@ -336,12 +337,12 @@ func main() {
 		existingRefreshCookie, _ := r.Cookie(REFRESH_TOKEN_COOKIE_NAME)
 		loginResponse, err := loginUser(context.Background(), conn, queries, payload, existingRefreshCookie)
 		if err != nil {
+			if errors.Is(err, ErrInvalidPassword) {
+				http.Error(w, "Invalid Password", http.StatusBadRequest)
+				return
+			}
 			fmt.Println("Login error: ", err)
 			http.Error(w, "Unable to login", http.StatusInternalServerError)
-			return
-		}
-		if loginResponse == nil {
-			http.Error(w, "Invalid Password", http.StatusBadRequest)
 			return
 		}
 		refreshCookie := createRefreshCookie(loginResponse.RefreshToken)
