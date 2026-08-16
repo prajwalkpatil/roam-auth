@@ -13,6 +13,7 @@ import (
 	db "roam-auth/db/sqlc"
 	"time"
 
+	"github.com/golang-jwt/jwt/v4"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -24,6 +25,7 @@ import (
 var ErrEmailAlreadyExists error = errors.New("Email already exists")
 var RefreshTokenNotFound error = errors.New("Refresh Token Not Found")
 var REFRESH_TOKEN_EXPIRY_DAYS int = 15
+var JWT_EXPIRY_MINUTES int = 15
 
 type LoginRequest struct {
 	Email    string `json:"email"`
@@ -37,10 +39,19 @@ type SignupRequest struct {
 }
 
 type LoginResponse struct {
+	ID           string `json:"id"`
 	Email        string `json:"email"`
-	RefreshToken string `json:"token"`
+	RefreshToken string `json:"refresh_token"`
 	Valid        bool   `json:"-"`
 }
+
+type UserJWTClaims struct {
+	ID    string
+	Email string
+	jwt.RegisteredClaims
+}
+
+var JWTSigningKey = []byte(os.Getenv("JWT_SIGNING_KEY"))
 
 func hashPassword(password string) (string, error) {
 	passBytes, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
@@ -96,6 +107,7 @@ func loginUser(ctx context.Context, conn *pgx.Conn, queries *db.Queries, payload
 		return response, err
 	}
 	response = LoginResponse{
+		ID:           passwordResult.ID.String(),
 		Email:        payload.Email,
 		RefreshToken: refreshResult.RefreshToken,
 		Valid:        true,
@@ -240,14 +252,35 @@ func handleLogin(w http.ResponseWriter, _ *http.Request) {
 	fmt.Fprintf(w, "Hello, World")
 }
 
-func createJWTCookie() *http.Cookie {
+func createJWTString(id string, email string) (string, error) {
+	claims := UserJWTClaims{
+		ID:    id,
+		Email: email,
+		RegisteredClaims: jwt.RegisteredClaims{
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Duration(JWT_EXPIRY_MINUTES) * time.Minute)),
+		},
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	tokenString, err := token.SignedString(JWTSigningKey)
+	if err != nil {
+		return "", err
+	}
+	return tokenString, err
+}
+
+func createJWTCookie(id string, email string) (*http.Cookie, error) {
+	tokenString, err := createJWTString(id, email)
+	if err != nil {
+		return nil, err
+	}
 	return &http.Cookie{
-		Name:     "jwt",
-		Value:    "TEST",
+		Name:     "Token",
+		Value:    tokenString,
 		Path:     "/",
 		HttpOnly: true,
 		SameSite: http.SameSiteLaxMode,
-	}
+	}, nil
 }
 
 func main() {
@@ -284,7 +317,12 @@ func main() {
 			http.Error(w, "Invalid Password", http.StatusBadRequest)
 			return
 		}
-		http.SetCookie(w, createJWTCookie())
+		jwtCookie, err := createJWTCookie(loginResponse.ID, loginResponse.Email)
+		if err != nil {
+			http.Error(w, "Unable to login", http.StatusInternalServerError)
+			return
+		}
+		http.SetCookie(w, jwtCookie)
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(loginResponse)
 	})
