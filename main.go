@@ -29,9 +29,12 @@ var ErrExpiredJWT error = errors.New("Expired JWT")
 
 var REFRESH_TOKEN_EXPIRY_DAYS int = 15
 
+var CLAIMS_CONTEXT_KEY = "claims"
+
 var JWT_COOKIE_NAME string = "Token"
 var JWT_EXPIRY_MINUTES int = 15
 var JWT_SIGNING_ALGO = jwt.SigningMethodHS256
+var jwtSigningKey []byte
 
 type LoginRequest struct {
 	Email    string `json:"email"`
@@ -279,6 +282,7 @@ func createJWTCookie(id string, email string, signingKey []byte) (*http.Cookie, 
 		Path:     "/",
 		HttpOnly: true,
 		SameSite: http.SameSiteLaxMode,
+		Secure:   true,
 	}, nil
 }
 
@@ -302,6 +306,32 @@ func parseJWTClaims(tokenString string, signingKey []byte) (*UserJWTClaims, erro
 	return claims, nil
 }
 
+func authMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		jwtCookie, err := r.Cookie(JWT_COOKIE_NAME)
+		if errors.Is(err, http.ErrNoCookie) {
+			//Use refresh token
+			http.Error(w, "Unauthenticated", http.StatusUnauthorized)
+			return
+		}
+		if err != nil {
+			http.Error(w, "Unauthenticated", http.StatusUnauthorized)
+			return
+		}
+		claims, err := parseJWTClaims(jwtCookie.Value, jwtSigningKey)
+		if errors.Is(err, ErrExpiredJWT) {
+			// Use refresh token
+			return
+		}
+		if err != nil {
+			http.Error(w, "Unauthenticated", http.StatusUnauthorized)
+			return
+		}
+		ctx := context.WithValue(r.Context(), CLAIMS_CONTEXT_KEY, claims)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
 func main() {
 	godotenv.Load()
 	conn, err := pgx.Connect(context.Background(), os.Getenv("DATABASE_URL"))
@@ -311,10 +341,11 @@ func main() {
 	}
 	defer conn.Close(context.Background())
 
-	jwtSigningKey := []byte(os.Getenv("JWT_SIGNING_KEY"))
+	jwtSigningKey = []byte(os.Getenv("JWT_SIGNING_KEY"))
 	queries := db.New(conn)
 
 	mux := http.NewServeMux()
+
 	mux.HandleFunc("POST /login", func(w http.ResponseWriter, r *http.Request) {
 		var payload LoginRequest
 		err := json.NewDecoder(r.Body).Decode(&payload)
@@ -367,22 +398,11 @@ func main() {
 		fmt.Fprintf(w, "User registered %s!", payload.Name)
 	})
 
-	mux.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
-		jwtCookie, err := r.Cookie(JWT_COOKIE_NAME)
-		if err != nil {
-			fmt.Println("Cookie error:", err)
-			http.Error(w, "Unauthorized", http.StatusUnauthorized)
-			return
-		}
-		claims, err := parseJWTClaims(jwtCookie.Value, jwtSigningKey)
-		if err != nil {
-			fmt.Println("JWT error:", err)
-			http.Error(w, "Unauthorized", http.StatusUnauthorized)
-			return
-		}
-		fmt.Println("User claims:", *claims)
+	mux.Handle("GET /", authMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		claims, _ := r.Context().Value(CLAIMS_CONTEXT_KEY).(*UserJWTClaims)
+		fmt.Println("User Claims:", *claims)
 		fmt.Fprintf(w, "Hello, World")
-	})
+	})))
 
 	srv := &http.Server{
 		Addr:         ":8000",
