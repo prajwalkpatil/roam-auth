@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	db "roam-auth/db/sqlc"
+	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v4"
@@ -28,10 +29,10 @@ var ErrInvalidJWT error = errors.New("Invalid JWT")
 var ErrExpiredJWT error = errors.New("Expired JWT")
 
 var REFRESH_TOKEN_EXPIRY_DAYS int = 15
+var REFRESH_TOKEN_COOKIE_NAME string = "Token"
 
 var CLAIMS_CONTEXT_KEY = "claims"
 
-var JWT_COOKIE_NAME string = "Token"
 var JWT_EXPIRY_MINUTES int = 15
 var JWT_SIGNING_ALGO = jwt.SigningMethodHS256
 var jwtSigningKey []byte
@@ -50,7 +51,8 @@ type SignupRequest struct {
 type LoginResponse struct {
 	ID           string `json:"id"`
 	Email        string `json:"email"`
-	RefreshToken string `json:"refresh_token"`
+	Token        string `json:"token"`
+	RefreshToken string `json:"-"`
 	Valid        bool   `json:"-"`
 }
 
@@ -113,10 +115,16 @@ func loginUser(ctx context.Context, conn *pgx.Conn, queries *db.Queries, payload
 	if err := tx.Commit(ctx); err != nil {
 		return response, err
 	}
+	uid := passwordResult.ID.String()
+	jwtString, err := createJWTString(uid, payload.Email)
+	if err != nil {
+		return response, err
+	}
 	response = LoginResponse{
-		ID:           passwordResult.ID.String(),
+		ID:           uid,
 		Email:        payload.Email,
 		RefreshToken: refreshResult.RefreshToken,
+		Token:        jwtString,
 		Valid:        true,
 	}
 	return response, nil
@@ -254,7 +262,7 @@ func replaceRefreshToken(ctx context.Context, conn *pgx.Conn, queries *db.Querie
 	return result, nil
 }
 
-func createJWTString(id string, email string, signingKey []byte) (string, error) {
+func createJWTString(id string, email string) (string, error) {
 	claims := UserJWTClaims{
 		ID:    id,
 		Email: email,
@@ -264,26 +272,22 @@ func createJWTString(id string, email string, signingKey []byte) (string, error)
 		},
 	}
 	token := jwt.NewWithClaims(JWT_SIGNING_ALGO, claims)
-	tokenString, err := token.SignedString(signingKey)
+	tokenString, err := token.SignedString(jwtSigningKey)
 	if err != nil {
 		return "", err
 	}
 	return tokenString, err
 }
 
-func createJWTCookie(id string, email string, signingKey []byte) (*http.Cookie, error) {
-	tokenString, err := createJWTString(id, email, signingKey)
-	if err != nil {
-		return nil, err
-	}
+func createRefreshCookie(token string) *http.Cookie {
 	return &http.Cookie{
-		Name:     JWT_COOKIE_NAME,
-		Value:    tokenString,
+		Name:     REFRESH_TOKEN_COOKIE_NAME,
+		Value:    token,
 		Path:     "/",
 		HttpOnly: true,
 		SameSite: http.SameSiteLaxMode,
 		Secure:   true,
-	}, nil
+	}
 }
 
 func parseJWTClaims(tokenString string, signingKey []byte) (*UserJWTClaims, error) {
@@ -308,19 +312,23 @@ func parseJWTClaims(tokenString string, signingKey []byte) (*UserJWTClaims, erro
 
 func authMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		jwtCookie, err := r.Cookie(JWT_COOKIE_NAME)
-		if errors.Is(err, http.ErrNoCookie) {
-			//Use refresh token
+		authHeader := r.Header.Get("Authorization")
+		if !strings.HasPrefix(authHeader, "Bearer ") {
+			http.Error(w, "Unauthenticated", http.StatusUnauthorized)
+			//Check refresh token
+			return
+		}
+		authItems := strings.Split(authHeader, " ")
+		if len(authItems) != 2 {
+			//Deformed auth header
 			http.Error(w, "Unauthenticated", http.StatusUnauthorized)
 			return
 		}
-		if err != nil {
-			http.Error(w, "Unauthenticated", http.StatusUnauthorized)
-			return
-		}
-		claims, err := parseJWTClaims(jwtCookie.Value, jwtSigningKey)
+		jwtString := authItems[1]
+		claims, err := parseJWTClaims(jwtString, jwtSigningKey)
 		if errors.Is(err, ErrExpiredJWT) {
 			// Use refresh token
+			http.Error(w, "Unauthenticated", http.StatusUnauthorized)
 			return
 		}
 		if err != nil {
@@ -365,12 +373,8 @@ func main() {
 			http.Error(w, "Invalid Password", http.StatusBadRequest)
 			return
 		}
-		jwtCookie, err := createJWTCookie(loginResponse.ID, loginResponse.Email, jwtSigningKey)
-		if err != nil {
-			http.Error(w, "Unable to login", http.StatusInternalServerError)
-			return
-		}
-		http.SetCookie(w, jwtCookie)
+		refreshCookie := createRefreshCookie(loginResponse.RefreshToken)
+		http.SetCookie(w, refreshCookie)
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(loginResponse)
 	})
