@@ -215,32 +215,6 @@ func createRefreshToken() (string, error) {
 	return hex.EncodeToString(b), nil
 }
 
-func addNewRefreshToken(ctx context.Context, conn *pgx.Conn, queries *db.Queries, id string, token string) (db.AuthToken, error) {
-	var result db.AuthToken
-	tx, err := conn.Begin(ctx)
-	if err != nil {
-		return result, err
-	}
-	defer tx.Rollback(ctx)
-	qtx := queries.WithTx(tx)
-	uid, err := uuid.Parse(id)
-	if err != nil {
-		return result, err
-	}
-	result, err = qtx.AddRefreshToken(ctx, db.AddRefreshTokenParams{
-		ID:           uid,
-		RefreshToken: token,
-		ExpiresAt: pgtype.Timestamptz{
-			Time:  time.Now().AddDate(0, 0, REFRESH_TOKEN_EXPIRY_DAYS),
-			Valid: true,
-		},
-	})
-	if err := tx.Commit(ctx); err != nil {
-		return result, err
-	}
-	return result, nil
-}
-
 func createJWTString(id string, email string) (string, error) {
 	claims := UserJWTClaims{
 		ID:    id,
