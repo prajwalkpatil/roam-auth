@@ -268,22 +268,22 @@ func authMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		authHeader := r.Header.Get("Authorization")
 		if !strings.HasPrefix(authHeader, "Bearer ") {
-			http.Error(w, "Unauthenticated", http.StatusUnauthorized)
+			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
 		authItems := strings.Split(authHeader, " ")
 		if len(authItems) != 2 {
-			http.Error(w, "Unauthenticated", http.StatusUnauthorized)
+			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
 		jwtString := authItems[1]
 		claims, err := parseJWTClaims(jwtString, jwtSigningKey)
 		if errors.Is(err, ErrExpiredJWT) {
-			http.Error(w, "Unauthenticated", http.StatusUnauthorized)
+			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
 		if err != nil {
-			http.Error(w, "Unauthenticated", http.StatusUnauthorized)
+			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
 		ctx := context.WithValue(r.Context(), CLAIMS_CONTEXT_KEY, claims)
@@ -308,17 +308,17 @@ func main() {
 	mux.HandleFunc("POST /refresh", func(w http.ResponseWriter, r *http.Request) {
 		refreshToken, err := r.Cookie(REFRESH_TOKEN_COOKIE_NAME)
 		if err != nil {
-			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
 		user, err := getUserFromRefreshToken(context.Background(), queries, refreshToken.Value)
 		if err != nil {
-			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
 		jwtString, err := createJWTString(user.ID, user.Email)
 		if err != nil {
-			http.Error(w, "Unexpected error occured", http.StatusInternalServerError)
+			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 		user.Token = jwtString
@@ -342,7 +342,7 @@ func main() {
 				return
 			}
 			fmt.Println("Login error: ", err)
-			http.Error(w, "Unable to login", http.StatusInternalServerError)
+			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 		refreshCookie := createRefreshCookie(loginResponse.RefreshToken)
@@ -366,7 +366,7 @@ func main() {
 			if errors.Is(err, ErrEmailAlreadyExists) {
 				http.Error(w, "Email already exists", http.StatusBadRequest)
 			} else {
-				http.Error(w, "Couldn't create the account", http.StatusInternalServerError)
+				w.WriteHeader(http.StatusInternalServerError)
 			}
 			fmt.Printf("Signup error: %s", err)
 			return
