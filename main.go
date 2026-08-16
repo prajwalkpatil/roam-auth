@@ -278,10 +278,6 @@ func authMiddleware(next http.Handler) http.Handler {
 		}
 		jwtString := authItems[1]
 		claims, err := parseJWTClaims(jwtString, jwtSigningKey)
-		if errors.Is(err, ErrExpiredJWT) {
-			w.WriteHeader(http.StatusUnauthorized)
-			return
-		}
 		if err != nil {
 			w.WriteHeader(http.StatusUnauthorized)
 			return
