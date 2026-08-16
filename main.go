@@ -167,6 +167,21 @@ func signupUser(ctx context.Context, conn *pgx.Conn, queries *db.Queries, payloa
 	return true, nil
 }
 
+func getUserFromRefreshToken(ctx context.Context, queries *db.Queries, refreshToken string) (*LoginResponse, error) {
+	rows, err := queries.GetUserFromRefreshToken(ctx, refreshToken)
+	if err != nil {
+		return nil, err
+	}
+	if len(rows) != 1 {
+		return nil, ErrRefreshTokenNotFound
+	}
+	user := rows[0]
+	return &LoginResponse{
+		ID:    user.ID.String(),
+		Email: user.Email,
+	}, nil
+}
+
 func createRefreshToken() (string, error) {
 	b := make([]byte, 32)
 	rand.Read(b)
@@ -313,19 +328,16 @@ func authMiddleware(next http.Handler) http.Handler {
 		authHeader := r.Header.Get("Authorization")
 		if !strings.HasPrefix(authHeader, "Bearer ") {
 			http.Error(w, "Unauthenticated", http.StatusUnauthorized)
-			//Check refresh token
 			return
 		}
 		authItems := strings.Split(authHeader, " ")
 		if len(authItems) != 2 {
-			//Deformed auth header
 			http.Error(w, "Unauthenticated", http.StatusUnauthorized)
 			return
 		}
 		jwtString := authItems[1]
 		claims, err := parseJWTClaims(jwtString, jwtSigningKey)
 		if errors.Is(err, ErrExpiredJWT) {
-			// Use refresh token
 			http.Error(w, "Unauthenticated", http.StatusUnauthorized)
 			return
 		}
@@ -351,6 +363,26 @@ func main() {
 	queries := db.New(conn)
 
 	mux := http.NewServeMux()
+
+	mux.HandleFunc("POST /refresh", func(w http.ResponseWriter, r *http.Request) {
+		refreshToken, err := r.Cookie(REFRESH_TOKEN_COOKIE_NAME)
+		if err != nil {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+		user, err := getUserFromRefreshToken(context.Background(), queries, refreshToken.Value)
+		if err != nil {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+		jwtString, err := createJWTString(user.ID, user.Email)
+		if err != nil {
+			http.Error(w, "Unexpected error occured", http.StatusInternalServerError)
+			return
+		}
+		user.Token = jwtString
+		json.NewEncoder(w).Encode(user)
+	})
 
 	mux.HandleFunc("POST /login", func(w http.ResponseWriter, r *http.Request) {
 		var payload LoginRequest

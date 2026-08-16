@@ -49,3 +49,10 @@ WHERE id = $1 AND refresh_token = $2;
 SELECT id, refresh_token, expires_at
 FROM auth.tokens
 WHERE id = $1 AND refresh_token = $2;
+
+-- name: GetUserFromRefreshToken :many
+SELECT auth.users.id as id, auth.users.email as email 
+FROM auth.tokens
+INNER JOIN auth.users
+ON auth.users.id = auth.tokens.id
+WHERE auth.tokens.refresh_token = $1;
