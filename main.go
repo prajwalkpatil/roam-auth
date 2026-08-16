@@ -75,28 +75,27 @@ func isValidPassword(hashedPassword string, inputPassword string) bool {
 	return true
 }
 
-func loginUser(ctx context.Context, conn *pgx.Conn, queries *db.Queries, payload LoginRequest) (LoginResponse, error) {
-	var response LoginResponse
+func loginUser(ctx context.Context, conn *pgx.Conn, queries *db.Queries, payload LoginRequest) (*LoginResponse, error) {
 	tx, err := conn.Begin(ctx)
 	if err != nil {
-		return response, err
+		return nil, err
 	}
 	defer tx.Rollback(ctx)
 	qtx := queries.WithTx(tx)
 	passwordResult, err := qtx.GetUserPasswordFromEmail(ctx, payload.Email)
 	if err != nil {
-		return response, err
+		return nil, err
 	}
 	fmt.Println("passwordResult: ", passwordResult)
 
 	isValid := isValidPassword(passwordResult.HashedPassword, payload.Password)
 	if !isValid {
-		return response, nil
+		return nil, nil
 	}
 	fmt.Println("isValidPassword: ", isValid)
 	token, err := createRefreshToken()
 	if err != nil {
-		return response, nil
+		return nil, nil
 	}
 	fmt.Println("Refresh token: ", token)
 	refreshResult, err := qtx.AddRefreshToken(ctx, db.AddRefreshTokenParams{
@@ -109,25 +108,24 @@ func loginUser(ctx context.Context, conn *pgx.Conn, queries *db.Queries, payload
 	})
 	if err != nil {
 		fmt.Println("Error adding Refresh token: ", err)
-		return response, err
+		return nil, err
 	}
 	fmt.Println("Refresh token:", refreshResult)
 	if err := tx.Commit(ctx); err != nil {
-		return response, err
+		return nil, err
 	}
 	uid := passwordResult.ID.String()
 	jwtString, err := createJWTString(uid, payload.Email)
 	if err != nil {
-		return response, err
+		return nil, err
 	}
-	response = LoginResponse{
+	return &LoginResponse{
 		ID:           uid,
 		Email:        payload.Email,
 		RefreshToken: refreshResult.RefreshToken,
 		Token:        jwtString,
 		Valid:        true,
-	}
-	return response, nil
+	}, nil
 }
 
 func signupUser(ctx context.Context, conn *pgx.Conn, queries *db.Queries, payload SignupRequest) (bool, error) {
@@ -369,7 +367,7 @@ func main() {
 			http.Error(w, "Unable to login", http.StatusInternalServerError)
 			return
 		}
-		if !loginResponse.Valid {
+		if loginResponse == nil {
 			http.Error(w, "Invalid Password", http.StatusBadRequest)
 			return
 		}
