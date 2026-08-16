@@ -50,6 +50,12 @@ SELECT id, refresh_token, expires_at
 FROM auth.tokens
 WHERE id = $1 AND refresh_token = $2;
 
+-- name: ReplaceRefreshToken :execrows
+UPDATE auth.tokens
+SET refresh_token = sqlc.arg(new_refresh_token), expires_at = sqlc.arg(expires_at)
+WHERE refresh_token = sqlc.arg(old_refresh_token)
+RETURNING id, refresh_token, expires_at;
+
 -- name: GetUserFromRefreshToken :many
 SELECT auth.users.id as id, auth.users.email as email 
 FROM auth.tokens

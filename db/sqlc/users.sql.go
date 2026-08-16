@@ -240,3 +240,24 @@ func (q *Queries) GetUsers(ctx context.Context, arg GetUsersParams) ([]GetUsersR
 	}
 	return items, nil
 }
+
+const replaceRefreshToken = `-- name: ReplaceRefreshToken :execrows
+UPDATE auth.tokens
+SET refresh_token = $1, expires_at = $2
+WHERE refresh_token = $3
+RETURNING id, refresh_token, expires_at
+`
+
+type ReplaceRefreshTokenParams struct {
+	NewRefreshToken string
+	ExpiresAt       pgtype.Timestamptz
+	OldRefreshToken string
+}
+
+func (q *Queries) ReplaceRefreshToken(ctx context.Context, arg ReplaceRefreshTokenParams) (int64, error) {
+	result, err := q.db.Exec(ctx, replaceRefreshToken, arg.NewRefreshToken, arg.ExpiresAt, arg.OldRefreshToken)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}

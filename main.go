@@ -75,7 +75,46 @@ func isValidPassword(hashedPassword string, inputPassword string) bool {
 	return true
 }
 
-func loginUser(ctx context.Context, conn *pgx.Conn, queries *db.Queries, payload LoginRequest) (*LoginResponse, error) {
+func handleRefreshTokenOnSuccessfulLogin(ctx context.Context, queries *db.Queries, uid uuid.UUID, refreshCookie *http.Cookie) (string, error) {
+	newRefreshToken, err := createRefreshToken()
+	if err != nil {
+		return "", err
+	}
+
+	if refreshCookie != nil {
+		oldRefreshToken := refreshCookie.Value
+		affectedRows, err := queries.ReplaceRefreshToken(ctx, db.ReplaceRefreshTokenParams{
+			OldRefreshToken: oldRefreshToken,
+			NewRefreshToken: newRefreshToken,
+			ExpiresAt: pgtype.Timestamptz{
+				Time:  time.Now().AddDate(0, 0, REFRESH_TOKEN_EXPIRY_DAYS),
+				Valid: true,
+			},
+		})
+		if err != nil {
+			return "", err
+		}
+		if affectedRows > 0 {
+			return newRefreshToken, nil
+		}
+	}
+
+	refreshResult, err := queries.AddRefreshToken(ctx, db.AddRefreshTokenParams{
+		ID:           uid,
+		RefreshToken: newRefreshToken,
+		ExpiresAt: pgtype.Timestamptz{
+			Time:  time.Now().AddDate(0, 0, REFRESH_TOKEN_EXPIRY_DAYS),
+			Valid: true,
+		},
+	})
+	if err != nil {
+		fmt.Println("Error adding Refresh token: ", err)
+		return "", err
+	}
+	return refreshResult.RefreshToken, nil
+}
+
+func loginUser(ctx context.Context, conn *pgx.Conn, queries *db.Queries, payload LoginRequest, refreshCookie *http.Cookie) (*LoginResponse, error) {
 	tx, err := conn.Begin(ctx)
 	if err != nil {
 		return nil, err
@@ -93,24 +132,12 @@ func loginUser(ctx context.Context, conn *pgx.Conn, queries *db.Queries, payload
 		return nil, nil
 	}
 	fmt.Println("isValidPassword: ", isValid)
-	token, err := createRefreshToken()
+
+	refreshToken, err := handleRefreshTokenOnSuccessfulLogin(ctx, qtx, passwordResult.ID, refreshCookie)
 	if err != nil {
-		return nil, nil
-	}
-	fmt.Println("Refresh token: ", token)
-	refreshResult, err := qtx.AddRefreshToken(ctx, db.AddRefreshTokenParams{
-		ID:           passwordResult.ID,
-		RefreshToken: token,
-		ExpiresAt: pgtype.Timestamptz{
-			Time:  time.Now().AddDate(0, 0, REFRESH_TOKEN_EXPIRY_DAYS),
-			Valid: true,
-		},
-	})
-	if err != nil {
-		fmt.Println("Error adding Refresh token: ", err)
 		return nil, err
 	}
-	fmt.Println("Refresh token:", refreshResult)
+
 	if err := tx.Commit(ctx); err != nil {
 		return nil, err
 	}
@@ -122,7 +149,7 @@ func loginUser(ctx context.Context, conn *pgx.Conn, queries *db.Queries, payload
 	return &LoginResponse{
 		ID:           uid,
 		Email:        payload.Email,
-		RefreshToken: refreshResult.RefreshToken,
+		RefreshToken: refreshToken,
 		Token:        jwtString,
 		Valid:        true,
 	}, nil
@@ -208,67 +235,6 @@ func addNewRefreshToken(ctx context.Context, conn *pgx.Conn, queries *db.Queries
 			Valid: true,
 		},
 	})
-	if err := tx.Commit(ctx); err != nil {
-		return result, err
-	}
-	return result, nil
-}
-
-func isValidRefreshToken(ctx context.Context, queries *db.Queries, id string, token string) (bool, error) {
-	tokenResult, err := findRefreshToken(ctx, queries, id, token)
-	if err != nil {
-		return false, err
-	}
-	expiryTime := tokenResult.ExpiresAt.Time
-	return (tokenResult.RefreshToken == token) && expiryTime.After(time.Now()), nil
-}
-
-func findRefreshToken(ctx context.Context, queries *db.Queries, id string, token string) (db.AuthToken, error) {
-	uid, err := uuid.Parse(id)
-	if err != nil {
-		return db.AuthToken{}, err
-	}
-	return queries.GetRefreshToken(ctx, db.GetRefreshTokenParams{
-		ID:           uid,
-		RefreshToken: token,
-	})
-}
-
-func replaceRefreshToken(ctx context.Context, conn *pgx.Conn, queries *db.Queries, id string, oldToken string, newToken string) (db.AuthToken, error) {
-	var result db.AuthToken
-	tx, err := conn.Begin(ctx)
-	if err != nil {
-		return result, err
-	}
-	defer tx.Rollback(ctx)
-
-	uid, err := uuid.Parse(id)
-	if err != nil {
-		return result, err
-	}
-
-	qtx := queries.WithTx(tx)
-	rowsAffected, err := qtx.DeleteRefreshToken(ctx, db.DeleteRefreshTokenParams{
-		ID:           uid,
-		RefreshToken: oldToken,
-	})
-	if rowsAffected == 0 {
-		return result, ErrRefreshTokenNotFound
-	}
-
-	result, err = qtx.AddRefreshToken(ctx, db.AddRefreshTokenParams{
-		ID:           uid,
-		RefreshToken: newToken,
-		ExpiresAt: pgtype.Timestamptz{
-			Time:  time.Now().AddDate(0, 0, REFRESH_TOKEN_EXPIRY_DAYS),
-			Valid: true,
-		},
-	})
-
-	if err != nil {
-		return result, err
-	}
-
 	if err := tx.Commit(ctx); err != nil {
 		return result, err
 	}
@@ -393,7 +359,8 @@ func main() {
 			return
 		}
 		defer r.Body.Close()
-		loginResponse, err := loginUser(context.Background(), conn, queries, payload)
+		existingRefreshCookie, _ := r.Cookie(REFRESH_TOKEN_COOKIE_NAME)
+		loginResponse, err := loginUser(context.Background(), conn, queries, payload, existingRefreshCookie)
 		if err != nil {
 			fmt.Println("Login error: ", err)
 			http.Error(w, "Unable to login", http.StatusInternalServerError)
