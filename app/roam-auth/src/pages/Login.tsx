@@ -14,6 +14,7 @@ import { Link } from "react-router-dom"
 import * as z from "zod"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
+import { login } from "@/api/requests"
 
 const Credentials = z.object({
   email: z.email({
@@ -35,7 +36,9 @@ export default function Login() {
   })
 
   const onSuccess = (data: z.infer<typeof Credentials>) => {
-    console.log("data :>> ", data)
+    login(data)
+      .then((r) => console.log("Login Response :>> ", r))
+      .catch((e) => console.error(e))
   }
 
   return (
