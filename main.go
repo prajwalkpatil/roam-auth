@@ -20,6 +20,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/joho/godotenv"
+	"github.com/rs/cors"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -414,9 +415,16 @@ func main() {
 		fmt.Fprintf(w, "Hello, World")
 	})))
 
+	c := cors.New(cors.Options{
+		AllowedOrigins:   []string{os.Getenv("CLIENT_URL")},
+		AllowedMethods:   []string{"GET", "POST", "OPTIONS"},
+		AllowedHeaders:   []string{"Content-Type", "Authorization"},
+		AllowCredentials: true,
+	})
+
 	srv := &http.Server{
 		Addr:         ":8000",
-		Handler:      mux,
+		Handler:      c.Handler(mux),
 		ReadTimeout:  5 * time.Second,
 		WriteTimeout: 10 * time.Second,
 		IdleTimeout:  120 * time.Second,
