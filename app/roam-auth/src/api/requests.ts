@@ -18,16 +18,11 @@ const setToken = (token: string) => {
 }
 const getToken = () => auth?.token
 
-api.interceptors.request.use(
-  (config) => {
-    const token = getToken()
-    if (token) config.headers.set("Authorization", `Bearer ${token}`)
-    return config
-  },
-  (error) => {
-    console.log("error :>> ", error)
-  }
-)
+api.interceptors.request.use((config) => {
+  const token = getToken()
+  if (token) config.headers.set("Authorization", `Bearer ${token}`)
+  return config
+})
 
 api.interceptors.response.use(
   (config) => config,
@@ -41,30 +36,38 @@ api.interceptors.response.use(
       return Promise.reject(error)
     }
     config._retryCount = config._retryCount ? config._retryCount + 1 : 1
-    const data = await refresh()
-    config.headers.set("Authorization", `Bearer ${data.token}`)
-    return api(config)
+    try {
+      const response = await refresh()
+      const data = response?.data as LoginResponse
+      config.headers.set("Authorization", `Bearer ${data.token}`)
+      setToken(data.token)
+      return api(config)
+    } catch (error) {
+      if (window.location.href != "login") window.location.href = "/login"
+      return Promise.reject(error)
+    }
   }
 )
 
-async function refresh(): Promise<LoginResponse> {
+async function refresh(): Promise<AxiosResponse> {
   const url = new URL(BASE_URL)
   url.pathname = "refresh"
-  const response = await axios.post(url.toString(), null, {
+  return axios.post(url.toString(), null, {
     withCredentials: true,
   })
-  const data = response?.data as LoginResponse
-  setToken(data.token)
-  return data
 }
 
-export async function ping(): Promise<AxiosResponse> {
+export async function ping(): Promise<string> {
   const response = await api.get("/")
   return response?.data
 }
 
 export async function login(payload: LoginRequest): Promise<LoginResponse> {
-  const response = await api.post("/login", payload)
+  const url = new URL(BASE_URL)
+  url.pathname = "login"
+  const response = await axios.post(url.toString(), payload, {
+    withCredentials: true,
+  })
   const data = response?.data as LoginResponse
   setToken(data.token)
   return data

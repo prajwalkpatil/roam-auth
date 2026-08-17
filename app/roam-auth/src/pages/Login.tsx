@@ -37,7 +37,9 @@ export default function Login() {
 
   const onSuccess = (data: z.infer<typeof Credentials>) => {
     login(data)
-      .then((r) => console.log("Login Response :>> ", r))
+      .then(() => {
+        window.location.href = "/"
+      })
       .catch((e) => console.error(e))
   }
 
