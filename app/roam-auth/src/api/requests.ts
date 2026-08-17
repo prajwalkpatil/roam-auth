@@ -4,7 +4,7 @@ import type { LoginRequest, LoginResponse } from "./types"
 
 const BASE_URL = "http://localhost:8000"
 
-let authToken: string | null = null
+const auth: { token?: string } = {}
 
 const MAX_RETRIES = 3
 
@@ -13,9 +13,15 @@ const api = axios.create({
   withCredentials: true,
 })
 
+const setToken = (token: string) => {
+  auth.token = token
+}
+const getToken = () => auth?.token
+
 api.interceptors.request.use(
   (config) => {
-    if (authToken) config.headers.set("Authorization", `Bearer ${authToken}`)
+    const token = getToken()
+    if (token) config.headers.set("Authorization", `Bearer ${token}`)
     return config
   },
   (error) => {
@@ -48,7 +54,7 @@ async function refresh(): Promise<LoginResponse> {
     withCredentials: true,
   })
   const data = response?.data as LoginResponse
-  authToken = data.id
+  setToken(data.token)
   return data
 }
 
@@ -60,6 +66,6 @@ export async function ping(): Promise<AxiosResponse> {
 export async function login(payload: LoginRequest): Promise<LoginResponse> {
   const response = await api.post("/login", payload)
   const data = response?.data as LoginResponse
-  authToken = data.token
+  setToken(data.token)
   return data
 }
