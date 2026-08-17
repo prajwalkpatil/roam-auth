@@ -76,8 +76,8 @@ func isValidPassword(hashedPassword string, inputPassword string) bool {
 	return true
 }
 
-func handleRefreshTokenOnSuccessfulLogin(ctx context.Context, queries *db.Queries, uid uuid.UUID, refreshCookie *http.Cookie) (string, error) {
-	newRefreshToken, err := createRefreshToken()
+func createRefreshToken(ctx context.Context, queries *db.Queries, uid uuid.UUID, refreshCookie *http.Cookie) (string, error) {
+	newRefreshToken, err := newRefreshToken()
 	if err != nil {
 		return "", err
 	}
@@ -134,7 +134,7 @@ func loginUser(ctx context.Context, conn *pgx.Conn, queries *db.Queries, payload
 	}
 	fmt.Println("isValidPassword: ", isValid)
 
-	refreshToken, err := handleRefreshTokenOnSuccessfulLogin(ctx, qtx, passwordResult.ID, refreshCookie)
+	refreshToken, err := createRefreshToken(ctx, qtx, passwordResult.ID, refreshCookie)
 	if err != nil {
 		return nil, err
 	}
@@ -210,7 +210,7 @@ func getUserFromRefreshToken(ctx context.Context, queries *db.Queries, refreshTo
 	}, nil
 }
 
-func createRefreshToken() (string, error) {
+func newRefreshToken() (string, error) {
 	b := make([]byte, 32)
 	rand.Read(b)
 	return hex.EncodeToString(b), nil
