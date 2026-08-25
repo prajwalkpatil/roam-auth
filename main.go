@@ -16,9 +16,9 @@ import (
 
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joho/godotenv"
 	"github.com/rs/cors"
 	"golang.org/x/crypto/bcrypt"
@@ -116,8 +116,8 @@ func createRefreshToken(ctx context.Context, queries *db.Queries, uid uuid.UUID,
 	return refreshResult.RefreshToken, nil
 }
 
-func loginUser(ctx context.Context, conn *pgx.Conn, queries *db.Queries, payload LoginRequest, refreshCookie *http.Cookie) (*LoginResponse, error) {
-	tx, err := conn.Begin(ctx)
+func loginUser(ctx context.Context, pool *pgxpool.Pool, queries *db.Queries, payload LoginRequest, refreshCookie *http.Cookie) (*LoginResponse, error) {
+	tx, err := pool.Begin(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -157,8 +157,8 @@ func loginUser(ctx context.Context, conn *pgx.Conn, queries *db.Queries, payload
 	}, nil
 }
 
-func signupUser(ctx context.Context, conn *pgx.Conn, queries *db.Queries, payload SignupRequest) (bool, error) {
-	tx, err := conn.Begin(ctx)
+func signupUser(ctx context.Context, pool *pgxpool.Pool, queries *db.Queries, payload SignupRequest) (bool, error) {
+	tx, err := pool.Begin(ctx)
 	if err != nil {
 		return false, err
 	}
@@ -308,19 +308,19 @@ func authMiddleware(next http.Handler) http.Handler {
 
 func main() {
 	godotenv.Load()
-	conn, err := pgx.Connect(context.Background(), os.Getenv("DATABASE_URL"))
+	pool, err := pgxpool.New(context.Background(), os.Getenv("DATABASE_URL"))
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println("Pool creation error: ", err)
 		os.Exit(1)
 	}
-	defer conn.Close(context.Background())
+	defer pool.Close()
 
 	jwtSigningKey = []byte(os.Getenv("JWT_SIGNING_KEY"))
-	queries := db.New(conn)
 
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("POST /refresh", func(w http.ResponseWriter, r *http.Request) {
+		queries := db.New(pool)
 		refreshToken, err := r.Cookie(REFRESH_TOKEN_COOKIE_NAME)
 		if err != nil {
 			w.WriteHeader(http.StatusUnauthorized)
@@ -341,6 +341,7 @@ func main() {
 	})
 
 	mux.HandleFunc("POST /login", func(w http.ResponseWriter, r *http.Request) {
+		queries := db.New(pool)
 		var payload LoginRequest
 		err := json.NewDecoder(r.Body).Decode(&payload)
 		if err != nil {
@@ -350,7 +351,7 @@ func main() {
 		}
 		defer r.Body.Close()
 		existingRefreshCookie, _ := r.Cookie(REFRESH_TOKEN_COOKIE_NAME)
-		loginResponse, err := loginUser(context.Background(), conn, queries, payload, existingRefreshCookie)
+		loginResponse, err := loginUser(context.Background(), pool, queries, payload, existingRefreshCookie)
 		if err != nil {
 			if errors.Is(err, ErrInvalidPassword) {
 				http.Error(w, "Invalid Password", http.StatusBadRequest)
@@ -367,6 +368,7 @@ func main() {
 	})
 
 	mux.HandleFunc("POST /signup", func(w http.ResponseWriter, r *http.Request) {
+		queries := db.New(pool)
 		var payload SignupRequest
 		err := json.NewDecoder(r.Body).Decode(&payload)
 		if err != nil {
@@ -376,7 +378,7 @@ func main() {
 		}
 		defer r.Body.Close()
 
-		_, err = signupUser(context.Background(), conn, queries, payload)
+		_, err = signupUser(context.Background(), pool, queries, payload)
 		if err != nil {
 			if errors.Is(err, ErrEmailAlreadyExists) {
 				http.Error(w, "Email already exists", http.StatusBadRequest)
@@ -390,6 +392,7 @@ func main() {
 	})
 
 	mux.Handle("POST /logout", authMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		queries := db.New(pool)
 		claims, ok := r.Context().Value(CLAIMS_CONTEXT_KEY).(*UserJWTClaims)
 		if !ok {
 			w.WriteHeader(http.StatusBadRequest)
@@ -425,7 +428,7 @@ func main() {
 	srv := &http.Server{
 		Addr:         ":8000",
 		Handler:      c.Handler(mux),
-		ReadTimeout:  5 * time.Second,
+		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 10 * time.Second,
 		IdleTimeout:  120 * time.Second,
 	}

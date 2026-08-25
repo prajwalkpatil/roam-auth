@@ -5,7 +5,6 @@ export default function Profile() {
   const [message, setMessage] = useState("")
   ping()
     .then((response) => {
-      console.log("response.data :>> ", response)
       setMessage(response)
     })
     .catch((err) => console.error(err))
