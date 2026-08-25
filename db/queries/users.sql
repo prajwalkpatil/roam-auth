@@ -25,7 +25,7 @@ SELECT hashed_password
 FROM auth.passwords
 WHERE id = $1;
 
--- name: GetUserPasswordFromEmail :one
+-- name: GetUserPasswordFromEmail :many
 SELECT auth.users.id as id, auth.users.email as email, hashed_password
 FROM auth.users
 INNER JOIN auth.passwords 

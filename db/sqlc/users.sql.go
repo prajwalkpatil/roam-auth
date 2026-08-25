@@ -175,7 +175,7 @@ func (q *Queries) GetUserPassword(ctx context.Context, id uuid.UUID) (string, er
 	return hashed_password, err
 }
 
-const getUserPasswordFromEmail = `-- name: GetUserPasswordFromEmail :one
+const getUserPasswordFromEmail = `-- name: GetUserPasswordFromEmail :many
 SELECT auth.users.id as id, auth.users.email as email, hashed_password
 FROM auth.users
 INNER JOIN auth.passwords 
@@ -189,11 +189,24 @@ type GetUserPasswordFromEmailRow struct {
 	HashedPassword string
 }
 
-func (q *Queries) GetUserPasswordFromEmail(ctx context.Context, email string) (GetUserPasswordFromEmailRow, error) {
-	row := q.db.QueryRow(ctx, getUserPasswordFromEmail, email)
-	var i GetUserPasswordFromEmailRow
-	err := row.Scan(&i.ID, &i.Email, &i.HashedPassword)
-	return i, err
+func (q *Queries) GetUserPasswordFromEmail(ctx context.Context, email string) ([]GetUserPasswordFromEmailRow, error) {
+	rows, err := q.db.Query(ctx, getUserPasswordFromEmail, email)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetUserPasswordFromEmailRow
+	for rows.Next() {
+		var i GetUserPasswordFromEmailRow
+		if err := rows.Scan(&i.ID, &i.Email, &i.HashedPassword); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const getUsers = `-- name: GetUsers :many

@@ -28,6 +28,7 @@ var ErrEmailAlreadyExists error = errors.New("Email already exists")
 var ErrRefreshTokenNotFound error = errors.New("Refresh Token Not Found")
 var ErrInvalidJWT error = errors.New("Invalid JWT")
 var ErrExpiredJWT error = errors.New("Expired JWT")
+var ErrEmailDoesNotExist error = errors.New("Email does not exist")
 var ErrInvalidPassword error = errors.New("Invalid Password")
 
 var REFRESH_TOKEN_EXPIRY_DAYS int = 15
@@ -123,10 +124,15 @@ func loginUser(ctx context.Context, pool *pgxpool.Pool, queries *db.Queries, pay
 	}
 	defer tx.Rollback(ctx)
 	qtx := queries.WithTx(tx)
-	passwordResult, err := qtx.GetUserPasswordFromEmail(ctx, payload.Email)
+	passwordResultRows, err := qtx.GetUserPasswordFromEmail(ctx, payload.Email)
 	if err != nil {
 		return nil, err
 	}
+	if len(passwordResultRows) == 0 {
+		fmt.Println("Email does not exist")
+		return nil, ErrEmailDoesNotExist
+	}
+	passwordResult := passwordResultRows[0]
 	fmt.Println("passwordResult: ", passwordResult)
 
 	isValid := isValidPassword(passwordResult.HashedPassword, payload.Password)
