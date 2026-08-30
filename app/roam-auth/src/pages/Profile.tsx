@@ -1,6 +1,7 @@
 import { ping } from "@/api/requests"
 import AlertWrapper from "@/components/AlertWrapper"
 import { Spinner } from "@/components/ui/spinner"
+import type { AxiosError } from "axios"
 import { useEffect, useState } from "react"
 
 export default function Profile() {
@@ -11,7 +12,9 @@ export default function Profile() {
   useEffect(() => {
     ping()
       .then((res) => setMessage(res))
-      .catch((error) => setError(error.toString()))
+      .catch((error: AxiosError) => {
+        if (error.status != 401) setError(error.toString())
+      })
       .finally(() => setFetched(true))
   }, [])
 
