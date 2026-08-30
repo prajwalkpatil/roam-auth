@@ -1,14 +1,30 @@
 import { ping } from "@/api/requests"
-import { useState } from "react"
+import AlertWrapper from "@/components/AlertWrapper"
+import { Spinner } from "@/components/ui/spinner"
+import { useEffect, useState } from "react"
 
 export default function Profile() {
   const [message, setMessage] = useState("")
-  ping()
-    .then((response) => {
-      setMessage(response)
-    })
-    .catch((err) => console.error(err))
+  const [error, setError] = useState("")
+  const [fetched, setFetched] = useState(false)
+
+  useEffect(() => {
+    ping()
+      .then((res) => setMessage(res))
+      .catch((error) => setError(error.toString()))
+      .finally(() => setFetched(true))
+  }, [])
+
   return (
-    <div className="flex h-screen items-center justify-center">{message}</div>
+    <div className="flex h-screen items-center justify-center">
+      <div>{!fetched && <Spinner />}</div>
+      <div>{message}</div>
+      {error && (
+        <AlertWrapper
+          title="Something went wrong"
+          description={error}
+        ></AlertWrapper>
+      )}
+    </div>
   )
 }
