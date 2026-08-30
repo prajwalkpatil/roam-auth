@@ -1,22 +1,12 @@
 import axios from "axios"
-import type { AxiosResponse } from "axios"
-import type { LoginRequest, LoginResponse } from "./types"
-
-const BASE_URL = "http://localhost:8000"
-
-const auth: { token?: string } = {}
-
-const MAX_RETRIES = 3
+import type { LoginResponse } from "./types"
+import { BASE_URL, MAX_RETRIES } from "./constants"
+import { getToken, refresh, setToken } from "./auth"
 
 const api = axios.create({
   baseURL: BASE_URL,
   withCredentials: true,
 })
-
-const setToken = (token: string) => {
-  auth.token = token
-}
-const getToken = () => auth?.token
 
 api.interceptors.request.use((config) => {
   const token = getToken()
@@ -49,26 +39,7 @@ api.interceptors.response.use(
   }
 )
 
-async function refresh(): Promise<AxiosResponse> {
-  const url = new URL(BASE_URL)
-  url.pathname = "refresh"
-  return axios.post(url.toString(), null, {
-    withCredentials: true,
-  })
-}
-
 export async function ping(): Promise<string> {
   const response = await api.get("/")
   return response?.data
-}
-
-export async function login(payload: LoginRequest): Promise<LoginResponse> {
-  const url = new URL(BASE_URL)
-  url.pathname = "login"
-  const response = await axios.post(url.toString(), payload, {
-    withCredentials: true,
-  })
-  const data = response?.data as LoginResponse
-  setToken(data.token)
-  return data
 }
