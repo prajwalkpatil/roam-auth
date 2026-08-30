@@ -14,7 +14,7 @@ import { Link } from "react-router-dom"
 import * as z from "zod"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { login } from "@/api/requests"
+import { login } from "@/api/auth"
 
 const Credentials = z.object({
   email: z.email({

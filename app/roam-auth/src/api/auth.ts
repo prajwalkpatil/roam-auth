@@ -7,6 +7,7 @@ const auth: { token?: string } = {}
 export const setToken = (token: string) => {
   auth.token = token
 }
+
 export const getToken = () => auth?.token
 
 const authClient = axios.create({
