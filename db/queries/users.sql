@@ -32,6 +32,13 @@ INNER JOIN auth.passwords
 ON auth.users.id = auth.passwords.id
 WHERE auth.users.email = $1;
 
+-- name: GetUserFromId :many
+SELECT auth.users.id as id, public.users.name name, auth.users.email as email
+FROM auth.users 
+INNER JOIN public.users
+ON auth.users.id = public.users.id
+WHERE auth.users.id = $1;
+
 -- name: AddRefreshToken :one
 INSERT INTO auth.tokens (id, refresh_token, expires_at)
 VALUES ($1, $2, $3)

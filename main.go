@@ -29,6 +29,7 @@ var ErrRefreshTokenNotFound error = errors.New("Refresh Token Not Found")
 var ErrInvalidJWT error = errors.New("Invalid JWT")
 var ErrExpiredJWT error = errors.New("Expired JWT")
 var ErrEmailDoesNotExist error = errors.New("Email does not exist")
+var ErrUserIdDoesNotExist error = errors.New("User ID not exist")
 var ErrInvalidPassword error = errors.New("Invalid Password")
 
 var REFRESH_TOKEN_EXPIRY_DAYS int = 15
@@ -57,6 +58,12 @@ type LoginResponse struct {
 	Token        string `json:"token"`
 	RefreshToken string `json:"-"`
 	Valid        bool   `json:"-"`
+}
+
+type ProfileResponse struct {
+	ID    string `json:"-"`
+	Email string `json:"email"`
+	Name  string `json:"name"`
 }
 
 type UserJWTClaims struct {
@@ -269,6 +276,26 @@ func deleteRefreshToken(ctx context.Context, queries *db.Queries, id string, ref
 	return true, nil
 }
 
+func getUserFromId(ctx context.Context, queries *db.Queries, id string) (*ProfileResponse, error) {
+	uid, err := uuid.Parse(id)
+	if err != nil {
+		return nil, err
+	}
+	resultRow, err := queries.GetUserFromId(ctx, uid)
+	if err != nil {
+		return nil, err
+	}
+	if len(resultRow) == 0 {
+		return nil, ErrUserIdDoesNotExist
+	}
+	result := resultRow[0]
+	return &ProfileResponse{
+		ID:    result.ID.String(),
+		Email: result.Email,
+		Name:  result.Name,
+	}, nil
+}
+
 func parseJWTClaims(tokenString string, signingKey []byte) (*UserJWTClaims, error) {
 	parsedToken, err := jwt.ParseWithClaims(tokenString, &UserJWTClaims{}, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
@@ -416,6 +443,24 @@ func main() {
 			return
 		}
 		w.WriteHeader(http.StatusOK)
+	})))
+
+	mux.Handle("GET /profile", authMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		queries := db.New(pool)
+		claims, _ := r.Context().Value(CLAIMS_CONTEXT_KEY).(*UserJWTClaims)
+		response, err := getUserFromId(context.Background(), queries, claims.ID)
+		if err != nil {
+			if errors.Is(err, ErrUserIdDoesNotExist) {
+				fmt.Println("Invalid profile: ", err)
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+			fmt.Println("Error while fetching profile: ", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(response)
 	})))
 
 	mux.Handle("GET /", authMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

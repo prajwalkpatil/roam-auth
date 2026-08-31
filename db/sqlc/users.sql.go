@@ -129,6 +129,40 @@ func (q *Queries) GetRefreshToken(ctx context.Context, arg GetRefreshTokenParams
 	return i, err
 }
 
+const getUserFromId = `-- name: GetUserFromId :many
+SELECT auth.users.id as id, public.users.name name, auth.users.email as email
+FROM auth.users 
+INNER JOIN public.users
+ON auth.users.id = public.users.id
+WHERE auth.users.id = $1
+`
+
+type GetUserFromIdRow struct {
+	ID    uuid.UUID
+	Name  string
+	Email string
+}
+
+func (q *Queries) GetUserFromId(ctx context.Context, id uuid.UUID) ([]GetUserFromIdRow, error) {
+	rows, err := q.db.Query(ctx, getUserFromId, id)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetUserFromIdRow
+	for rows.Next() {
+		var i GetUserFromIdRow
+		if err := rows.Scan(&i.ID, &i.Name, &i.Email); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getUserFromRefreshToken = `-- name: GetUserFromRefreshToken :many
 SELECT auth.users.id as id, auth.users.email as email 
 FROM auth.tokens
