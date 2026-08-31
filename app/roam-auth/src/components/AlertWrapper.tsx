@@ -15,7 +15,7 @@ export default function AlertWrapper({
   return (
     <Alert
       variant={variant}
-      className="absolute top-0 right-0 mx-4 my-5 max-w-md"
+      className="absolute top-0 right-0 mx-4 my-5 w-80 max-w-[80%]"
     >
       <AlertCircleIcon />
       <AlertTitle>{title}</AlertTitle>

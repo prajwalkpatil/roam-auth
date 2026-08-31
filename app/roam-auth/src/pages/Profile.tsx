@@ -35,7 +35,7 @@ export default function Profile() {
           <Card className="flex-1">
             <CardHeader>
               <CardTitle>Profile</CardTitle>
-              <CardDescription>You’re now logged in.</CardDescription>
+              <CardDescription>You're now logged in.</CardDescription>
             </CardHeader>
             <CardContent className="mt-2">
               <div className="flex flex-col rounded-md bg-accent px-3 py-2 text-[0.8rem]">
