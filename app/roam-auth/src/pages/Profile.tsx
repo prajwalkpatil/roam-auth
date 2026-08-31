@@ -28,7 +28,7 @@ export default function Profile() {
   }, [])
 
   return (
-    <div className="flex h-screen items-center justify-center">
+    <div className="flex h-screen items-center justify-center selection:bg-sidebar-primary">
       <div>{!fetched && <Spinner />}</div>
       {fetched && !error && (
         <div className="flex w-3/4 md:w-1/2 lg:w-1/3 xl:w-2/7">
