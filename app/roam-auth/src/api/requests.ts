@@ -1,5 +1,5 @@
 import axios from "axios"
-import type { LoginResponse } from "./types"
+import type { LoginResponse, ProfileResponse } from "./types"
 import { BASE_URL, MAX_RETRIES } from "./constants"
 import { getToken, refresh, setToken } from "./auth"
 
@@ -44,7 +44,7 @@ export async function ping(): Promise<string> {
   return response?.data
 }
 
-export async function getProfile(): Promise<string> {
+export async function getProfile(): Promise<ProfileResponse> {
   const response = await api.get("/profile")
   return response?.data
 }

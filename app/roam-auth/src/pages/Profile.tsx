@@ -1,4 +1,5 @@
-import { ping } from "@/api/requests"
+import { getProfile } from "@/api/requests"
+import type { ProfileResponse } from "@/api/types"
 import AlertWrapper from "@/components/AlertWrapper"
 import { Button } from "@/components/ui/button"
 import {
@@ -14,13 +15,13 @@ import type { AxiosError } from "axios"
 import { useEffect, useState } from "react"
 
 export default function Profile() {
-  const [, setMessage] = useState("")
+  const [profile, setProfile] = useState<ProfileResponse | null>(null)
   const [error, setError] = useState("")
   const [fetched, setFetched] = useState(false)
 
   useEffect(() => {
-    ping()
-      .then((res) => setMessage(res))
+    getProfile()
+      .then((res) => setProfile(res))
       .catch((error: AxiosError) => {
         if (error.status != 401) setError(error.toString())
       })
@@ -44,7 +45,7 @@ export default function Profile() {
                     Name
                   </div>
                   <div className="overflow-y-auto text-end wrap-break-word text-secondary-foreground">
-                    Prajwal Patil
+                    {profile?.name}
                   </div>
                 </div>
                 <div className="flex items-center justify-between gap-3 pt-1.5">
@@ -52,7 +53,7 @@ export default function Profile() {
                     Email
                   </div>
                   <div className="overflow-y-auto text-end wrap-break-word text-secondary-foreground">
-                    prajwalpatilk@gmail.com
+                    {profile?.email}
                   </div>
                 </div>
               </div>

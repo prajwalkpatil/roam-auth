@@ -8,3 +8,8 @@ export interface LoginResponse {
   token: string
   email: string
 }
+
+export interface ProfileResponse {
+  name: string
+  email: string
+}
