@@ -451,12 +451,11 @@ func main() {
 		response, err := getUserFromId(context.Background(), queries, claims.ID)
 		if err != nil {
 			if errors.Is(err, ErrUserIdDoesNotExist) {
-				fmt.Println("Invalid profile: ", err)
-				w.WriteHeader(http.StatusBadRequest)
-				return
+				http.Error(w, "Invalid User ID", http.StatusBadRequest)
+			} else {
+				w.WriteHeader(http.StatusInternalServerError)
 			}
 			fmt.Println("Error while fetching profile: ", err)
-			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")

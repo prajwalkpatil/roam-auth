@@ -43,3 +43,8 @@ export async function ping(): Promise<string> {
   const response = await api.get("/")
   return response?.data
 }
+
+export async function getProfile(): Promise<string> {
+  const response = await api.get("/profile")
+  return response?.data
+}
