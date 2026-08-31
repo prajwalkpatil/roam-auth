@@ -26,7 +26,6 @@ api.interceptors.response.use(
       return Promise.reject(error)
     }
     config._retryCount = config._retryCount ? config._retryCount + 1 : 1
-    console.log("config._retryCount :>> ", config._retryCount)
     try {
       const response = await refresh()
       const data = response?.data as LoginResponse
