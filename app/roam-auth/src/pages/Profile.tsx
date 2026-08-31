@@ -28,10 +28,10 @@ export default function Profile() {
   }, [])
 
   return (
-    <div className="flex h-screen items-center justify-center selection:bg-sidebar-primary">
+    <div className="flex h-screen items-center justify-center">
       <div>{!fetched && <Spinner />}</div>
       {fetched && !error && (
-        <div className="flex w-3/4 md:w-1/2 lg:w-1/3 xl:w-2/7">
+        <div className="flex w-3/4 selection:bg-sidebar-primary md:w-1/2 lg:w-1/3 xl:w-2/7">
           <Card className="flex-1">
             <CardHeader>
               <CardTitle>Profile</CardTitle>
