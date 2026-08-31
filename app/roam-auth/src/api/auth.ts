@@ -1,5 +1,5 @@
 import axios, { type AxiosResponse } from "axios"
-import type { LoginRequest, LoginResponse } from "./types"
+import type { LoginRequest, LoginResponse, SignupRequest } from "./types"
 import { BASE_URL } from "./constants"
 
 const auth: { token?: string | null } = {}
@@ -27,4 +27,8 @@ export async function refresh(): Promise<AxiosResponse> {
   return authClient.post("refresh", null, {
     withCredentials: true,
   })
+}
+
+export async function signup(payload: SignupRequest): Promise<AxiosResponse> {
+  return authClient.post("signup", payload)
 }

@@ -14,6 +14,8 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
+import { signup } from "@/api/auth"
+import type { AxiosError } from "axios"
 
 const User = z
   .object({
@@ -48,7 +50,12 @@ export default function Signup() {
   })
 
   function onSuccess(data: z.infer<typeof User>) {
-    console.log("success :>> ", data)
+    signup(data)
+      .then(() => (window.location.href = "/login"))
+      .catch((error: AxiosError) => {
+        //TODO: Show an error dialog
+        console.error("Signup failed; status:", error.status)
+      })
   }
 
   return (
