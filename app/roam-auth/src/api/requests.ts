@@ -48,3 +48,17 @@ export async function getProfile(): Promise<ProfileResponse> {
   const response = await api.get("/profile")
   return response?.data
 }
+
+export async function logout(): Promise<boolean> {
+  try {
+    const response = await api.post("logout", null)
+    if (response.status === 200) {
+      setToken(null)
+      return true
+    }
+    return false
+  } catch (e) {
+    console.error("Failed to logout", e)
+    return false
+  }
+}

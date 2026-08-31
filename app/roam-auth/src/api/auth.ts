@@ -2,9 +2,9 @@ import axios, { type AxiosResponse } from "axios"
 import type { LoginRequest, LoginResponse } from "./types"
 import { BASE_URL } from "./constants"
 
-const auth: { token?: string } = {}
+const auth: { token?: string | null } = {}
 
-export const setToken = (token: string) => {
+export const setToken = (token: string | null) => {
   auth.token = token
 }
 

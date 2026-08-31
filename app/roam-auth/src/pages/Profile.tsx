@@ -1,3 +1,4 @@
+import { logout } from "@/api/requests"
 import { getProfile } from "@/api/requests"
 import type { ProfileResponse } from "@/api/types"
 import AlertWrapper from "@/components/AlertWrapper"
@@ -13,8 +14,10 @@ import {
 import { Spinner } from "@/components/ui/spinner"
 import type { AxiosError } from "axios"
 import { useEffect, useState } from "react"
+import { useNavigate } from "react-router-dom"
 
 export default function Profile() {
+  const navigate = useNavigate()
   const [profile, setProfile] = useState<ProfileResponse | null>(null)
   const [error, setError] = useState("")
   const [fetched, setFetched] = useState(false)
@@ -28,11 +31,25 @@ export default function Profile() {
       .finally(() => setFetched(true))
   }, [])
 
+  const logoutUser = () => {
+    logout()
+      .then((ok) => {
+        if (ok) {
+          navigate("/login")
+        } else {
+          setError("Couldn't logout user")
+        }
+      })
+      .catch((err) => {
+        setError(err.toString())
+      })
+  }
+
   return (
     <div className="flex h-screen items-center justify-center">
       <div>{!fetched && <Spinner />}</div>
-      {fetched && !error && (
-        <div className="flex w-3/4 selection:bg-sidebar-primary md:w-1/2 lg:w-1/3 xl:w-2/7">
+      {fetched && !error && profile && (
+        <div className="flex w-3/4 selection:bg-sidebar-primary selection:text-background md:w-1/2 lg:w-1/3 xl:w-2/7">
           <Card className="flex-1">
             <CardHeader>
               <CardTitle>Profile</CardTitle>
@@ -59,7 +76,7 @@ export default function Profile() {
               </div>
             </CardContent>
             <CardFooter>
-              <Button type="submit" className="w-full">
+              <Button type="submit" className="w-full" onClick={logoutUser}>
                 Logout
               </Button>
             </CardFooter>
