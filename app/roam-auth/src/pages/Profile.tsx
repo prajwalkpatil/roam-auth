@@ -76,7 +76,11 @@ export default function Profile() {
               </div>
             </CardContent>
             <CardFooter>
-              <Button type="submit" className="w-full" onClick={logoutUser}>
+              <Button
+                variant="destructive"
+                className="w-full"
+                onClick={logoutUser}
+              >
                 Logout
               </Button>
             </CardFooter>
