@@ -9,12 +9,13 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
-
+import { type ErrorResponse, ErrorEnum } from "@/api/types"
 import { Link } from "react-router-dom"
 import * as z from "zod"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { login } from "@/api/auth"
+import type { AxiosError } from "axios"
 
 const Credentials = z.object({
   email: z.email({
@@ -29,6 +30,7 @@ const Credentials = z.object({
 export default function Login() {
   const {
     register,
+    setError,
     handleSubmit,
     formState: { errors },
   } = useForm({
@@ -40,7 +42,27 @@ export default function Login() {
       .then(() => {
         window.location.href = "/"
       })
-      .catch((e) => console.error(e))
+      .catch((e: AxiosError) => {
+        const err = e.response?.data as ErrorResponse
+        if (err.error === ErrorEnum.EMAIL_DOES_NOT_EXIST) {
+          setError(
+            "email",
+            {
+              message: "Email not found",
+            },
+            { shouldFocus: true }
+          )
+        } else if (err.error === ErrorEnum.INVALID_PASSWORD) {
+          setError(
+            "password",
+            {
+              message: "Invalid Password",
+            },
+            { shouldFocus: true }
+          )
+        }
+        console.error("Login error", err)
+      })
   }
 
   return (

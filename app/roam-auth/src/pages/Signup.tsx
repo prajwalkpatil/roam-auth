@@ -16,6 +16,7 @@ import {
 import { Label } from "@/components/ui/label"
 import { signup } from "@/api/auth"
 import type { AxiosError } from "axios"
+import { ErrorEnum, type ErrorResponse } from "@/api/types"
 
 const User = z
   .object({
@@ -43,6 +44,7 @@ const User = z
 export default function Signup() {
   const {
     register,
+    setError,
     handleSubmit,
     formState: { errors },
   } = useForm({
@@ -52,9 +54,19 @@ export default function Signup() {
   function onSuccess(data: z.infer<typeof User>) {
     signup(data)
       .then(() => (window.location.href = "/login"))
-      .catch((error: AxiosError) => {
+      .catch((e: AxiosError) => {
         //TODO: Show an error dialog
-        console.error("Signup failed; status:", error.status)
+        const err = e?.response?.data as ErrorResponse
+        if (err.error === ErrorEnum.EMAIL_ALREADY_EXISTS) {
+          setError(
+            "email",
+            {
+              message: "Email already registered",
+            },
+            { shouldFocus: true }
+          )
+        }
+        console.error("Signup error", err)
       })
   }
 
