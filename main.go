@@ -353,6 +353,10 @@ func writeError(w http.ResponseWriter, err error) {
 	})
 }
 
+func normalizeEmail(email string) string {
+	return strings.TrimSpace(strings.ToLower(email))
+}
+
 func main() {
 	godotenv.Load()
 	pool, err := pgxpool.New(context.Background(), os.Getenv("DATABASE_URL"))
@@ -397,6 +401,7 @@ func main() {
 			return
 		}
 		defer r.Body.Close()
+		payload.Email = normalizeEmail(payload.Email)
 		existingRefreshCookie, _ := r.Cookie(REFRESH_TOKEN_COOKIE_NAME)
 		loginResponse, err := loginUser(context.Background(), pool, queries, payload, existingRefreshCookie)
 		if err != nil {
@@ -427,7 +432,7 @@ func main() {
 			return
 		}
 		defer r.Body.Close()
-
+		payload.Email = normalizeEmail(payload.Email)
 		_, err = signupUser(context.Background(), pool, queries, payload)
 		if err != nil {
 			fmt.Printf("Signup error: %s", err)
