@@ -349,7 +349,7 @@ func writeError(w http.ResponseWriter, err error) {
 	w.WriteHeader(http.StatusBadRequest)
 	json.NewEncoder(w).Encode(ErrorResponse{
 		Status: http.StatusBadRequest,
-		Error:  ErrEmailDoesNotExist.Error(),
+		Error:  err.Error(),
 	})
 }
 
