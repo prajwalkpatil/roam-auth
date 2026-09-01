@@ -25,9 +25,9 @@ import (
 )
 
 var ErrEmailAlreadyExists error = errors.New("EMAIL_ALREADY_EXISTS")
-var ErrRefreshTokenNotFound error = errors.New("Refresh Token Not Found")
-var ErrInvalidJWT error = errors.New("Invalid JWT")
-var ErrExpiredJWT error = errors.New("Expired JWT")
+var ErrRefreshTokenNotFound error = errors.New("REFRESH_TOKEN_NOT_FOUND")
+var ErrInvalidJWT error = errors.New("INVALID_JWT")
+var ErrExpiredJWT error = errors.New("EXPIRED_JWT")
 var ErrEmailDoesNotExist error = errors.New("EMAIL_DOES_NOT_EXIST")
 var ErrUserIdDoesNotExist error = errors.New("USER_ID_DOES_NOT_EXIST")
 var ErrInvalidPassword error = errors.New("INVALID_PASSWORD")
