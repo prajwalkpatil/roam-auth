@@ -24,13 +24,13 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-var ErrEmailAlreadyExists error = errors.New("Email already exists")
+var ErrEmailAlreadyExists error = errors.New("EMAIL_ALREADY_EXISTS")
 var ErrRefreshTokenNotFound error = errors.New("Refresh Token Not Found")
 var ErrInvalidJWT error = errors.New("Invalid JWT")
 var ErrExpiredJWT error = errors.New("Expired JWT")
-var ErrEmailDoesNotExist error = errors.New("Email does not exist")
-var ErrUserIdDoesNotExist error = errors.New("User ID not exist")
-var ErrInvalidPassword error = errors.New("Invalid Password")
+var ErrEmailDoesNotExist error = errors.New("EMAIL_DOES_NOT_EXIST")
+var ErrUserIdDoesNotExist error = errors.New("USER_ID_DOES_NOT_EXIST")
+var ErrInvalidPassword error = errors.New("INVALID_PASSWORD")
 
 var REFRESH_TOKEN_EXPIRY_DAYS int = 15
 var REFRESH_TOKEN_COOKIE_NAME string = "Token"
@@ -64,6 +64,11 @@ type ProfileResponse struct {
 	ID    string `json:"-"`
 	Email string `json:"email"`
 	Name  string `json:"name"`
+}
+
+type ErrorResponse struct {
+	Status int    `json:"status"`
+	Error  string `json:"error"`
 }
 
 type UserJWTClaims struct {
@@ -387,7 +392,18 @@ func main() {
 		loginResponse, err := loginUser(context.Background(), pool, queries, payload, existingRefreshCookie)
 		if err != nil {
 			if errors.Is(err, ErrInvalidPassword) {
-				http.Error(w, "Invalid Password", http.StatusBadRequest)
+				w.WriteHeader(http.StatusBadRequest)
+				json.NewEncoder(w).Encode(ErrorResponse{
+					Status: http.StatusBadRequest,
+					Error:  ErrInvalidPassword.Error(),
+				})
+				return
+			} else if errors.Is(err, ErrEmailDoesNotExist) {
+				w.WriteHeader(http.StatusBadRequest)
+				json.NewEncoder(w).Encode(ErrorResponse{
+					Status: http.StatusBadRequest,
+					Error:  ErrEmailDoesNotExist.Error(),
+				})
 				return
 			}
 			fmt.Println("Login error: ", err)
@@ -414,7 +430,11 @@ func main() {
 		_, err = signupUser(context.Background(), pool, queries, payload)
 		if err != nil {
 			if errors.Is(err, ErrEmailAlreadyExists) {
-				http.Error(w, "Email already exists", http.StatusBadRequest)
+				w.WriteHeader(http.StatusBadRequest)
+				json.NewEncoder(w).Encode(ErrorResponse{
+					Status: http.StatusBadRequest,
+					Error:  ErrEmailAlreadyExists.Error(),
+				})
 			} else {
 				w.WriteHeader(http.StatusInternalServerError)
 			}
