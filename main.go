@@ -344,6 +344,15 @@ func authMiddleware(next http.Handler) http.Handler {
 	})
 }
 
+func writeError(w http.ResponseWriter, err error) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusBadRequest)
+	json.NewEncoder(w).Encode(ErrorResponse{
+		Status: http.StatusBadRequest,
+		Error:  ErrEmailDoesNotExist.Error(),
+	})
+}
+
 func main() {
 	godotenv.Load()
 	pool, err := pgxpool.New(context.Background(), os.Getenv("DATABASE_URL"))
@@ -392,18 +401,10 @@ func main() {
 		loginResponse, err := loginUser(context.Background(), pool, queries, payload, existingRefreshCookie)
 		if err != nil {
 			if errors.Is(err, ErrInvalidPassword) {
-				w.WriteHeader(http.StatusBadRequest)
-				json.NewEncoder(w).Encode(ErrorResponse{
-					Status: http.StatusBadRequest,
-					Error:  ErrInvalidPassword.Error(),
-				})
+				writeError(w, ErrInvalidPassword)
 				return
 			} else if errors.Is(err, ErrEmailDoesNotExist) {
-				w.WriteHeader(http.StatusBadRequest)
-				json.NewEncoder(w).Encode(ErrorResponse{
-					Status: http.StatusBadRequest,
-					Error:  ErrEmailDoesNotExist.Error(),
-				})
+				writeError(w, ErrEmailDoesNotExist)
 				return
 			}
 			fmt.Println("Login error: ", err)
@@ -429,16 +430,12 @@ func main() {
 
 		_, err = signupUser(context.Background(), pool, queries, payload)
 		if err != nil {
-			if errors.Is(err, ErrEmailAlreadyExists) {
-				w.WriteHeader(http.StatusBadRequest)
-				json.NewEncoder(w).Encode(ErrorResponse{
-					Status: http.StatusBadRequest,
-					Error:  ErrEmailAlreadyExists.Error(),
-				})
-			} else {
-				w.WriteHeader(http.StatusInternalServerError)
-			}
 			fmt.Printf("Signup error: %s", err)
+			if errors.Is(err, ErrEmailAlreadyExists) {
+				writeError(w, ErrEmailAlreadyExists)
+				return
+			}
+			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 		fmt.Fprintf(w, "User registered %s!", payload.Name)
