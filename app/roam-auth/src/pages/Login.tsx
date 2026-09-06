@@ -69,6 +69,9 @@ export default function Login() {
         }
         console.error("Login error", err)
       })
+      .finally(() => {
+        setIsLoading(false)
+      })
   }
 
   return (

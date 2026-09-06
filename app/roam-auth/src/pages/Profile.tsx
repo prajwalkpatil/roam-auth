@@ -33,6 +33,9 @@ export default function Profile() {
       .catch((err) => {
         setError(err.toString())
       })
+      .finally(() => {
+        // setIsLoading(false)
+      })
   }
 
   return (
