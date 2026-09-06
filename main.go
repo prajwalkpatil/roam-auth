@@ -54,6 +54,7 @@ type SignupRequest struct {
 
 type LoginResponse struct {
 	ID           string `json:"id"`
+	Name         string `json:"name"`
 	Email        string `json:"email"`
 	Token        string `json:"token"`
 	RefreshToken string `json:"-"`
@@ -168,7 +169,8 @@ func loginUser(ctx context.Context, pool *pgxpool.Pool, queries *db.Queries, pay
 	}
 	return &LoginResponse{
 		ID:           uid,
-		Email:        payload.Email,
+		Email:        passwordResult.Email,
+		Name:         passwordResult.Name,
 		RefreshToken: refreshToken,
 		Token:        jwtString,
 		Valid:        true,

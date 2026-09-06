@@ -9,7 +9,7 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
-import { type ErrorResponse, ErrorEnum } from "@/api/types"
+import { type ErrorResponse, type LoginResponse, ErrorEnum } from "@/api/types"
 import { Link, useNavigate } from "react-router-dom"
 import * as z from "zod"
 import { useForm } from "react-hook-form"
@@ -43,11 +43,8 @@ export default function Login() {
 
   const onSuccess = (data: z.infer<typeof Credentials>) => {
     login(data)
-      .then(() => {
-        loginContextUser({
-          name: "Test",
-          email: "Test@gmail.com",
-        })
+      .then((response: LoginResponse) => {
+        loginContextUser({ name: response?.name, email: response?.email })
         navigate("/")
       })
       .catch((e: AxiosError) => {

@@ -8,15 +8,14 @@ export interface SignupRequest {
   password: string
 }
 
-export interface LoginResponse {
-  id: string
-  token: string
-  email: string
-}
-
 export interface ProfileResponse {
   name: string
   email: string
+}
+
+export interface LoginResponse extends ProfileResponse {
+  id: string
+  token: string
 }
 
 export const ErrorEnum = {

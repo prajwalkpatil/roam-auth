@@ -210,16 +210,17 @@ func (q *Queries) GetUserPassword(ctx context.Context, id uuid.UUID) (string, er
 }
 
 const getUserPasswordFromEmail = `-- name: GetUserPasswordFromEmail :many
-SELECT auth.users.id as id, auth.users.email as email, hashed_password
-FROM auth.users
-INNER JOIN auth.passwords 
-ON auth.users.id = auth.passwords.id
-WHERE auth.users.email = $1
+SELECT u.id as id, u.email as email, pu.name name, p.hashed_password as hashed_password
+FROM auth.users u
+INNER JOIN auth.passwords p ON u.id = p.id
+INNER JOIN public.users pu ON u.id = pu.id
+WHERE u.email = $1
 `
 
 type GetUserPasswordFromEmailRow struct {
 	ID             uuid.UUID
 	Email          string
+	Name           string
 	HashedPassword string
 }
 
@@ -232,7 +233,12 @@ func (q *Queries) GetUserPasswordFromEmail(ctx context.Context, email string) ([
 	var items []GetUserPasswordFromEmailRow
 	for rows.Next() {
 		var i GetUserPasswordFromEmailRow
-		if err := rows.Scan(&i.ID, &i.Email, &i.HashedPassword); err != nil {
+		if err := rows.Scan(
+			&i.ID,
+			&i.Email,
+			&i.Name,
+			&i.HashedPassword,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

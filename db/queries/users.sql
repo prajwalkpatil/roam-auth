@@ -26,11 +26,11 @@ FROM auth.passwords
 WHERE id = $1;
 
 -- name: GetUserPasswordFromEmail :many
-SELECT auth.users.id as id, auth.users.email as email, hashed_password
-FROM auth.users
-INNER JOIN auth.passwords 
-ON auth.users.id = auth.passwords.id
-WHERE auth.users.email = $1;
+SELECT u.id as id, u.email as email, pu.name name, p.hashed_password as hashed_password
+FROM auth.users u
+INNER JOIN auth.passwords p ON u.id = p.id
+INNER JOIN public.users pu ON u.id = pu.id
+WHERE u.email = $1;
 
 -- name: GetUserFromId :many
 SELECT auth.users.id as id, public.users.name name, auth.users.email as email
