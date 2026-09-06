@@ -34,7 +34,7 @@ export default function Profile() {
         setError(err.toString())
       })
       .finally(() => {
-        // setIsLoading(false)
+        setIsLoading(false)
       })
   }
 
