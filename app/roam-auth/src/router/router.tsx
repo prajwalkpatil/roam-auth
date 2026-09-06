@@ -1,3 +1,5 @@
+import ProtectedRoute from "@/auth/ProtectedRoute"
+import PublicRoute from "@/auth/PublicRoute"
 import Login from "@/pages/Login"
 import Profile from "@/pages/Profile"
 import Signup from "@/pages/Signup"
@@ -7,14 +9,26 @@ import { createBrowserRouter } from "react-router-dom"
 export const router = createBrowserRouter([
   {
     path: "/",
-    element: <Profile></Profile>,
+    element: (
+      <ProtectedRoute>
+        <Profile />
+      </ProtectedRoute>
+    ),
   },
   {
     path: "/login",
-    element: <Login></Login>,
+    element: (
+      <PublicRoute>
+        <Login />
+      </PublicRoute>
+    ),
   },
   {
     path: "/signup",
-    element: <Signup></Signup>,
+    element: (
+      <PublicRoute>
+        <Signup />
+      </PublicRoute>
+    ),
   },
 ])
