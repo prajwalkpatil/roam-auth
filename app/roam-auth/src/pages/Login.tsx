@@ -16,6 +16,7 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { login } from "@/api/auth"
 import type { AxiosError } from "axios"
+import useAuth from "@/auth/useAuth"
 
 const Credentials = z.object({
   email: z.email({
@@ -38,10 +39,15 @@ export default function Login() {
   })
 
   const navigate = useNavigate()
+  const { loginContextUser } = useAuth()
 
   const onSuccess = (data: z.infer<typeof Credentials>) => {
     login(data)
       .then(() => {
+        loginContextUser({
+          name: "Test",
+          email: "Test@gmail.com",
+        })
         navigate("/")
       })
       .catch((e: AxiosError) => {

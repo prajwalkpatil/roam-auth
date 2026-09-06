@@ -34,7 +34,7 @@ api.interceptors.response.use(
       setToken(data.token)
       return api(config)
     } catch (error) {
-      router.navigate("/login")
+      if (window.location.pathname != "/signup") router.navigate("/login")
       return Promise.reject(error)
     }
   }

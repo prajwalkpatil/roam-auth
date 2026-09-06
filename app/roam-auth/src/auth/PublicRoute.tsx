@@ -1,12 +1,12 @@
 import Loading from "@/components/Loading"
 import { router } from "@/router/router"
 import { useEffect, type PropsWithChildren } from "react"
+import useAuth from "@/auth/useAuth"
 
 export default function PublicRoute({
   children,
 }: PropsWithChildren): React.ReactNode {
-  const isAuthenticated = false
-  const isLoading = false
+  const { isLoading, isAuthenticated } = useAuth()
 
   useEffect(() => {
     if (!isLoading && isAuthenticated) {
