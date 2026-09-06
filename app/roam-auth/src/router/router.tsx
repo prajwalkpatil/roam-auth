@@ -4,17 +4,9 @@ import Login from "@/pages/Login"
 import Profile from "@/pages/Profile"
 import Signup from "@/pages/Signup"
 
-import { createBrowserRouter } from "react-router-dom"
+import { createBrowserRouter, type RouteObject } from "react-router-dom"
 
-export const router = createBrowserRouter([
-  {
-    path: "/",
-    element: (
-      <ProtectedRoute>
-        <Profile />
-      </ProtectedRoute>
-    ),
-  },
+const publicRoutes: RouteObject[] = [
   {
     path: "/login",
     element: (
@@ -31,4 +23,19 @@ export const router = createBrowserRouter([
       </PublicRoute>
     ),
   },
-])
+]
+
+const protectedRoutes: RouteObject[] = [
+  {
+    path: "/",
+    element: (
+      <ProtectedRoute>
+        <Profile />
+      </ProtectedRoute>
+    ),
+  },
+]
+
+export const router = createBrowserRouter([...protectedRoutes, ...publicRoutes])
+
+export const publicRoutePaths = new Set(publicRoutes.map((route) => route.path))

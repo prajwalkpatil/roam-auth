@@ -2,12 +2,15 @@ import axios from "axios"
 import type { LoginResponse, ProfileResponse } from "./types"
 import { BASE_URL, MAX_RETRIES } from "./constants"
 import { getToken, refresh, setToken } from "./auth"
-import { router } from "@/router/router"
+import { publicRoutePaths, router } from "@/router/router"
 
 const api = axios.create({
   baseURL: BASE_URL,
   withCredentials: true,
 })
+
+const shouldNavigateToLoginPage = () =>
+  !publicRoutePaths.has(window.location.pathname)
 
 api.interceptors.request.use((config) => {
   const token = getToken()
@@ -34,7 +37,7 @@ api.interceptors.response.use(
       setToken(data.token)
       return api(config)
     } catch (error) {
-      if (window.location.pathname != "/signup") router.navigate("/login")
+      if (shouldNavigateToLoginPage()) router.navigate("/login")
       return Promise.reject(error)
     }
   }
