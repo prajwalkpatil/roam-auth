@@ -1,7 +1,7 @@
 import * as z from "zod"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
-import { Link } from "react-router-dom"
+import { Link, useNavigate } from "react-router-dom"
 
 import { Button } from "@/components/ui/button"
 import { Field, FieldLabel } from "@/components/ui/field"
@@ -51,9 +51,11 @@ export default function Signup() {
     resolver: zodResolver(User),
   })
 
+  const navigate = useNavigate()
+
   function onSuccess(data: z.infer<typeof User>) {
     signup(data)
-      .then(() => (window.location.href = "/login"))
+      .then(() => navigate("/login"))
       .catch((e: AxiosError) => {
         //TODO: Show an error dialog
         const err = e?.response?.data as ErrorResponse

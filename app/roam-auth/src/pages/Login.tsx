@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { type ErrorResponse, ErrorEnum } from "@/api/types"
-import { Link } from "react-router-dom"
+import { Link, useNavigate } from "react-router-dom"
 import * as z from "zod"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -37,10 +37,12 @@ export default function Login() {
     resolver: zodResolver(Credentials),
   })
 
+  const navigate = useNavigate()
+
   const onSuccess = (data: z.infer<typeof Credentials>) => {
     login(data)
       .then(() => {
-        window.location.href = "/"
+        navigate("/")
       })
       .catch((e: AxiosError) => {
         const err = e.response?.data as ErrorResponse

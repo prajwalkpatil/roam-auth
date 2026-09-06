@@ -1,19 +1,8 @@
-import Login from "@/pages/Login"
-import Signup from "@/pages/Signup"
-
-import { BrowserRouter, Routes, Route } from "react-router-dom"
-import Profile from "./pages/Profile"
+import { RouterProvider } from "react-router-dom"
+import { router } from "./router/router"
 
 export function App() {
-  return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/login" element={<Login />} />
-        <Route path="/signup" element={<Signup />} />
-        <Route path="/" element={<Profile />} />
-      </Routes>
-    </BrowserRouter>
-  )
+  return <RouterProvider router={router} />
 }
 
 export default App

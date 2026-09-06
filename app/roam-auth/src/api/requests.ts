@@ -2,6 +2,7 @@ import axios from "axios"
 import type { LoginResponse, ProfileResponse } from "./types"
 import { BASE_URL, MAX_RETRIES } from "./constants"
 import { getToken, refresh, setToken } from "./auth"
+import { router } from "@/router/router"
 
 const api = axios.create({
   baseURL: BASE_URL,
@@ -33,7 +34,7 @@ api.interceptors.response.use(
       setToken(data.token)
       return api(config)
     } catch (error) {
-      if (window.location.href != "login") window.location.href = "/login"
+      router.navigate("/login")
       return Promise.reject(error)
     }
   }
