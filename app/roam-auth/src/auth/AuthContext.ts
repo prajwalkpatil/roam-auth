@@ -7,6 +7,7 @@ interface AuthContextType {
   isLoading: boolean
   loginContextUser: (profile: ProfileResponse) => void
   logoutContextUser: () => void
+  setIsLoading: (isLoading: boolean) => void
 }
 
 export const AuthContext = createContext<AuthContextType | null>(null)

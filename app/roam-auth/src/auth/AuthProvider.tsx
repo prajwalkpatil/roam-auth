@@ -45,6 +45,7 @@ export default function AuthProvider({
         isLoading,
         loginContextUser,
         logoutContextUser,
+        setIsLoading,
       }}
     >
       {children}

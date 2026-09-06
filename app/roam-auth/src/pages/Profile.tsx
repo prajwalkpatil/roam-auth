@@ -17,9 +17,10 @@ import { useNavigate } from "react-router-dom"
 export default function Profile() {
   const navigate = useNavigate()
   const [error, setError] = useState("")
-  const { user, isLoading, logoutContextUser } = useAuth()
+  const { user, isLoading, setIsLoading, logoutContextUser } = useAuth()
 
   const logoutUser = () => {
+    setIsLoading(true)
     logout()
       .then((ok) => {
         if (ok) {

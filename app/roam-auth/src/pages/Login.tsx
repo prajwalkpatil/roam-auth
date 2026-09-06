@@ -39,9 +39,10 @@ export default function Login() {
   })
 
   const navigate = useNavigate()
-  const { loginContextUser } = useAuth()
+  const { loginContextUser, setIsLoading } = useAuth()
 
   const onSuccess = (data: z.infer<typeof Credentials>) => {
+    setIsLoading(true)
     login(data)
       .then((response: LoginResponse) => {
         loginContextUser({ name: response?.name, email: response?.email })
