@@ -164,16 +164,19 @@ func (q *Queries) GetUserFromId(ctx context.Context, id uuid.UUID) ([]GetUserFro
 }
 
 const getUserFromRefreshToken = `-- name: GetUserFromRefreshToken :many
-SELECT auth.users.id as id, auth.users.email as email 
-FROM auth.tokens
-INNER JOIN auth.users
-ON auth.users.id = auth.tokens.id
-WHERE auth.tokens.refresh_token = $1
+SELECT u.id as id, u.email as email, pu.name as name
+FROM auth.tokens t
+INNER JOIN auth.users u
+ON u.id = t.id
+INNER JOIN public.users pu
+ON u.id = pu.id
+WHERE t.refresh_token = $1
 `
 
 type GetUserFromRefreshTokenRow struct {
 	ID    uuid.UUID
 	Email string
+	Name  string
 }
 
 func (q *Queries) GetUserFromRefreshToken(ctx context.Context, refreshToken string) ([]GetUserFromRefreshTokenRow, error) {
@@ -185,7 +188,7 @@ func (q *Queries) GetUserFromRefreshToken(ctx context.Context, refreshToken stri
 	var items []GetUserFromRefreshTokenRow
 	for rows.Next() {
 		var i GetUserFromRefreshTokenRow
-		if err := rows.Scan(&i.ID, &i.Email); err != nil {
+		if err := rows.Scan(&i.ID, &i.Email, &i.Name); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

@@ -64,8 +64,10 @@ WHERE refresh_token = sqlc.arg(old_refresh_token)
 RETURNING id, refresh_token, expires_at;
 
 -- name: GetUserFromRefreshToken :many
-SELECT auth.users.id as id, auth.users.email as email 
-FROM auth.tokens
-INNER JOIN auth.users
-ON auth.users.id = auth.tokens.id
-WHERE auth.tokens.refresh_token = $1;
+SELECT u.id as id, u.email as email, pu.name as name
+FROM auth.tokens t
+INNER JOIN auth.users u
+ON u.id = t.id
+INNER JOIN public.users pu
+ON u.id = pu.id
+WHERE t.refresh_token = $1;

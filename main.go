@@ -228,6 +228,7 @@ func getUserFromRefreshToken(ctx context.Context, queries *db.Queries, refreshTo
 	return &LoginResponse{
 		ID:    user.ID.String(),
 		Email: user.Email,
+		Name:  user.Name,
 	}, nil
 }
 
