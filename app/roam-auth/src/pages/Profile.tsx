@@ -1,6 +1,7 @@
 import { logout } from "@/api/requests"
 import useAuth from "@/auth/useAuth"
 import AlertWrapper from "@/components/AlertWrapper"
+import Loading from "@/components/Loading"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -10,7 +11,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { Spinner } from "@/components/ui/spinner"
 import { useState } from "react"
 import { useNavigate } from "react-router-dom"
 
@@ -38,10 +38,11 @@ export default function Profile() {
       })
   }
 
-  return (
+  return isLoading ? (
+    <Loading />
+  ) : (
     <div className="flex h-screen items-center justify-center">
-      <div>{isLoading && <Spinner />}</div>
-      {!isLoading && user && (
+      {user && (
         <div className="flex w-3/4 selection:bg-sidebar-primary selection:text-background md:w-1/2 lg:w-1/3 xl:w-2/7">
           <Card className="flex-1">
             <CardHeader>
