@@ -10,13 +10,16 @@ import {
 } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { type ErrorResponse, type LoginResponse, ErrorEnum } from "@/api/types"
+import { login } from "@/api/auth"
+import useAuth from "@/auth/useAuth"
+import Loading from "@/components/Loading"
+
 import { Link, useNavigate } from "react-router-dom"
 import * as z from "zod"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { login } from "@/api/auth"
+import { useState } from "react"
 import type { AxiosError } from "axios"
-import useAuth from "@/auth/useAuth"
 
 const Credentials = z.object({
   email: z.email({
@@ -39,7 +42,8 @@ export default function Login() {
   })
 
   const navigate = useNavigate()
-  const { loginContextUser, setIsLoading } = useAuth()
+  const [isLoading, setIsLoading] = useState(false)
+  const { loginContextUser } = useAuth()
 
   const onSuccess = (data: z.infer<typeof Credentials>) => {
     setIsLoading(true)
@@ -74,7 +78,9 @@ export default function Login() {
       })
   }
 
-  return (
+  return isLoading ? (
+    <Loading />
+  ) : (
     <div className="flex h-screen items-center justify-center">
       <Card className="w-3/4 md:w-1/2 lg:w-1/3 xl:w-2/7">
         <CardHeader>
