@@ -1,6 +1,6 @@
 # roam-auth
 
-Building authentication from scratch, the right way.
+Building authentication from scratch, the right way.<img src="./docs/images/login-page.png" alt="Login Page" align="right" width="400"/>
 
 A JWT-based authentication system built with Go, React, and PostgreSQL - short-lived JWTs for stateless request verification, refresh tokens for server-side session control, and HttpOnly cookies to keep tokens safe from XSS.
 
